@@ -1,7 +1,7 @@
 name: Intuition
 version: "0.1.0"
 slug: intuition
-description: Your home just knows. AI-powered Home Assistant automation intelligence.
+description: AI-powered Home Assistant automation intelligence. Your home just knows.
 url: https://github.com/ro7je2jktt88qabky0j1/intuition-ha
 arch:
   - aarch64
@@ -9,6 +9,12 @@ arch:
   - armhf
   - armv7
   - i386
+build_from:
+  aarch64: ghcr.io/home-assistant/aarch64-base-python:3.12-alpine3.19
+  amd64: ghcr.io/home-assistant/amd64-base-python:3.12-alpine3.19
+  armhf: ghcr.io/home-assistant/armhf-base-python:3.12-alpine3.19
+  armv7: ghcr.io/home-assistant/armv7-base-python:3.12-alpine3.19
+  i386: ghcr.io/home-assistant/i386-base-python:3.12-alpine3.19
 startup: application
 boot: auto
 panel_icon: mdi:brain
