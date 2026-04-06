@@ -11,7 +11,6 @@ HA_URL = os.environ.get("HA_URL", "http://supervisor/core")
 SUPERVISOR_URL = os.environ.get("SUPERVISOR_URL", "http://supervisor")
 HA_TOKEN = os.environ.get("HA_TOKEN", "")
 
-# Config files Intuition manages
 CONFIG_FILES = [
     "automations.yaml",
     "scripts.yaml",
@@ -30,7 +29,6 @@ def _ha_headers():
 
 
 async def get_ha_info() -> dict:
-    """Get basic HA info including version."""
     async with httpx.AsyncClient(timeout=10) as client:
         r = await client.get(f"{HA_URL}/api/", headers=_ha_headers())
         r.raise_for_status()
@@ -38,7 +36,6 @@ async def get_ha_info() -> dict:
 
 
 async def get_states() -> list:
-    """Get all entity states."""
     async with httpx.AsyncClient(timeout=30) as client:
         r = await client.get(f"{HA_URL}/api/states", headers=_ha_headers())
         r.raise_for_status()
@@ -46,23 +43,20 @@ async def get_states() -> list:
 
 
 async def get_device_registry() -> list:
-    """
-    Device registry is not available via REST API.
-    Returns empty list — devices will be added via WebSocket in a future version.
-    """
+    """Device registry not available via REST API — returns empty list."""
     return []
 
 
 async def get_area_registry() -> list:
-    """Get all areas via Supervisor API."""
+    """Get all areas via Supervisor core API."""
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            # Try the Supervisor areas endpoint
-            r = await client.get(
-                f"{SUPERVISOR_URL}/core/api/config/area_registry/list",
+            r = await client.post(
+                f"{HA_URL}/api/config/area_registry/list",
                 headers=_ha_headers(),
+                json={},
             )
-            if r.ok:
+            if r.status_code == 200:
                 data = r.json()
                 return data.get("result", [])
     except Exception:
@@ -71,10 +65,7 @@ async def get_area_registry() -> list:
 
 
 async def read_config_file(filename: str) -> Optional[str]:
-    """
-    Read a config file using Supervisor file manager API.
-    This is the key advantage of being an add-on - direct file access.
-    """
+    """Read a config file via Supervisor file manager API."""
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             r = await client.get(
@@ -106,7 +97,6 @@ async def write_config_file(filename: str, content: str) -> bool:
 
 
 async def read_all_config_files() -> dict:
-    """Read all managed config files. Returns dict of filename -> content."""
     files = {}
     for filename in CONFIG_FILES:
         content = await read_config_file(filename)
@@ -116,7 +106,6 @@ async def read_all_config_files() -> dict:
 
 
 async def run_config_check() -> dict:
-    """Run HA config check. Returns {passed: bool, errors: str}."""
     try:
         async with httpx.AsyncClient(timeout=30) as client:
             r = await client.post(
@@ -126,14 +115,12 @@ async def run_config_check() -> dict:
             )
             r.raise_for_status()
             data = r.json()
-            passed = data.get("result") == "valid"
-            return {"passed": passed, "errors": data.get("errors", "")}
+            return {"passed": data.get("result") == "valid", "errors": data.get("errors", "")}
     except Exception as e:
         return {"passed": False, "errors": str(e)}
 
 
 async def reload_domain(domain: str) -> bool:
-    """Reload a specific HA domain without restarting."""
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             r = await client.post(
@@ -147,21 +134,33 @@ async def reload_domain(domain: str) -> bool:
 
 
 async def get_error_log() -> str:
-    """Fetch the HA error log."""
+    """Fetch the HA error log via Supervisor."""
     try:
         async with httpx.AsyncClient(timeout=15) as client:
+            # Try Supervisor logging endpoint
+            r = await client.get(
+                f"{SUPERVISOR_URL}/core/logs",
+                headers=_ha_headers(),
+            )
+            if r.status_code == 200:
+                return r.text
+    except Exception:
+        pass
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            # Fallback to HA REST API error log
             r = await client.get(
                 f"{HA_URL}/api/error_log",
                 headers=_ha_headers(),
             )
-            r.raise_for_status()
-            return r.text
-    except Exception as e:
-        return f"Could not fetch logs: {e}"
+            if r.status_code == 200:
+                return r.text
+    except Exception:
+        pass
+    return ""
 
 
 async def get_entity_history(entity_id: str, days: int = 7) -> list:
-    """Get state history for an entity."""
     try:
         from datetime import datetime, timedelta
         start = (datetime.utcnow() - timedelta(days=days)).isoformat()
@@ -178,13 +177,9 @@ async def get_entity_history(entity_id: str, days: int = 7) -> list:
 
 
 async def get_supervisor_info() -> dict:
-    """Get Supervisor system info."""
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.get(
-                f"{SUPERVISOR_URL}/info",
-                headers=_ha_headers(),
-            )
+            r = await client.get(f"{SUPERVISOR_URL}/info", headers=_ha_headers())
             if r.status_code == 200:
                 return r.json()
     except Exception:
@@ -193,13 +188,9 @@ async def get_supervisor_info() -> dict:
 
 
 async def get_core_info() -> dict:
-    """Get HA core info."""
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.get(
-                f"{SUPERVISOR_URL}/core/info",
-                headers=_ha_headers(),
-            )
+            r = await client.get(f"{SUPERVISOR_URL}/core/info", headers=_ha_headers())
             if r.status_code == 200:
                 return r.json()
     except Exception:
@@ -208,13 +199,9 @@ async def get_core_info() -> dict:
 
 
 async def get_host_info() -> dict:
-    """Get host hardware info."""
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.get(
-                f"{SUPERVISOR_URL}/host/info",
-                headers=_ha_headers(),
-            )
+            r = await client.get(f"{SUPERVISOR_URL}/host/info", headers=_ha_headers())
             if r.status_code == 200:
                 return r.json()
     except Exception:
