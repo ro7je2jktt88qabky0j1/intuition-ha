@@ -1,30 +1,33 @@
 """
 Intuition - Your home just knows.
-FastAPI backend serving the frontend and providing all API endpoints.
+FastAPI backend with HA ingress support.
 """
 
 import os
 import logging
-import asyncio
 from pathlib import Path
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import Optional, List
 
 import ha_client
 import claude_client
 
-# ── Logging ──────────────────────────────────────────────────────────────────
 log_level = os.environ.get("LOG_LEVEL", "info").upper()
 logging.basicConfig(level=getattr(logging, log_level, logging.INFO))
 logger = logging.getLogger("intuition")
 
-# ── App state ─────────────────────────────────────────────────────────────────
+ingress_entry = os.environ.get("INGRESS_ENTRY", "")
+logger.info(f"Ingress entry point: {ingress_entry}")
+
+frontend_path = Path("/app/frontend")
+
+
 class AppState:
     def __init__(self):
         self.ha_info = {}
@@ -39,7 +42,7 @@ class AppState:
 
 state = AppState()
 
-# ── Lifespan ──────────────────────────────────────────────────────────────────
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Intuition starting up...")
@@ -47,49 +50,35 @@ async def lifespan(app: FastAPI):
     yield
     logger.info("Intuition shutting down.")
 
+
 async def load_all_data():
-    """Load all data from HA on startup."""
     try:
         logger.info("Loading HA info...")
         state.ha_info = await ha_client.get_ha_info()
-
         logger.info("Loading entities...")
         state.entities = await ha_client.get_states()
-
         logger.info("Loading devices...")
         state.devices = await ha_client.get_device_registry()
-
         logger.info("Loading areas...")
         state.areas = await ha_client.get_area_registry()
-
         logger.info("Loading config files...")
         state.config_files = await ha_client.read_all_config_files()
-
         logger.info("Loading logs...")
         state.logs = await ha_client.get_error_log()
-
         logger.info("Loading system info...")
         state.host_info = await ha_client.get_host_info()
         state.core_info = await ha_client.get_core_info()
-
         state.loaded = True
-        files_loaded = len(state.config_files)
-        entities_loaded = len(state.entities)
-        logger.info(f"Startup complete. {entities_loaded} entities, {files_loaded} config files loaded.")
-
+        logger.info(f"Startup complete. {len(state.entities)} entities, {len(state.config_files)} config files loaded.")
     except Exception as e:
         logger.error(f"Error during startup data load: {e}")
-        state.loaded = True  # Don't block startup
+        state.loaded = True
 
-# ── FastAPI app ───────────────────────────────────────────────────────────────
-app = FastAPI(title="Intuition", lifespan=lifespan)
 
-# Serve frontend static files
-frontend_path = Path("/app/frontend")
-if frontend_path.exists():
-    app.mount("/static", StaticFiles(directory=str(frontend_path)), name="static")
+# Use ingress entry as root path so all routes work correctly behind the proxy
+app = FastAPI(title="Intuition", lifespan=lifespan, root_path=ingress_entry)
 
-# ── Frontend route ─────────────────────────────────────────────────────────────
+
 @app.get("/", response_class=HTMLResponse)
 async def serve_frontend():
     index = frontend_path / "index.html"
@@ -97,7 +86,7 @@ async def serve_frontend():
         return HTMLResponse(content=index.read_text())
     return HTMLResponse(content="<h1>Intuition</h1><p>Frontend not found.</p>")
 
-# ── Status endpoint ────────────────────────────────────────────────────────────
+
 @app.get("/api/status")
 async def get_status():
     return {
@@ -110,14 +99,13 @@ async def get_status():
         "claude_configured": claude_client.is_configured(),
     }
 
-# ── Refresh endpoint ───────────────────────────────────────────────────────────
+
 @app.post("/api/refresh")
 async def refresh_data():
-    """Reload all data from HA."""
     await load_all_data()
-    return {"success": True, "message": "Data refreshed successfully."}
+    return {"success": True, "message": "Data refreshed."}
 
-# ── Entities ───────────────────────────────────────────────────────────────────
+
 @app.get("/api/entities")
 async def get_entities(domain: Optional[str] = None):
     entities = state.entities
@@ -136,9 +124,9 @@ async def get_entities(domain: Optional[str] = None):
         ],
     }
 
+
 @app.get("/api/entities/summary")
 async def get_entity_summary():
-    """Get entity counts by domain."""
     domains = {}
     for e in state.entities:
         domain = e["entity_id"].split(".")[0]
@@ -150,75 +138,65 @@ async def get_entity_summary():
         "domains": dict(sorted(domains.items(), key=lambda x: x[1], reverse=True)),
     }
 
-# ── Devices ────────────────────────────────────────────────────────────────────
+
 @app.get("/api/devices")
 async def get_devices():
-    return {
-        "count": len(state.devices),
-        "devices": state.devices,
-    }
+    return {"count": len(state.devices), "devices": state.devices}
 
-# ── Areas ──────────────────────────────────────────────────────────────────────
+
 @app.get("/api/areas")
 async def get_areas():
-    return {
-        "count": len(state.areas),
-        "areas": state.areas,
-    }
+    return {"count": len(state.areas), "areas": state.areas}
 
-# ── Config files ───────────────────────────────────────────────────────────────
+
 @app.get("/api/files")
 async def get_files():
     return {
         "files": {
-            name: {
-                "loaded": True,
-                "lines": len(content.split("\n")),
-                "size": len(content),
-            }
+            name: {"loaded": True, "lines": len(content.split("\n")), "size": len(content)}
             for name, content in state.config_files.items()
         },
-        "missing": [
-            f for f in ha_client.CONFIG_FILES
-            if f not in state.config_files
-        ],
+        "missing": [f for f in ha_client.CONFIG_FILES if f not in state.config_files],
     }
+
 
 @app.get("/api/files/{filename}")
 async def get_file(filename: str):
     if filename not in ha_client.CONFIG_FILES:
+        from fastapi import HTTPException
         raise HTTPException(status_code=400, detail="File not in managed list.")
     content = state.config_files.get(filename)
     if content is None:
+        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail=f"{filename} not loaded.")
     return {"filename": filename, "content": content, "lines": len(content.split("\n"))}
+
 
 class FileWriteRequest(BaseModel):
     content: str
 
+
 @app.post("/api/files/{filename}")
 async def write_file(filename: str, body: FileWriteRequest):
-    """Write a config file after config check passes."""
     if filename not in ha_client.CONFIG_FILES:
+        from fastapi import HTTPException
         raise HTTPException(status_code=400, detail="File not in managed list.")
-
-    # Always run config check first — write to temp, check, then write final
-    # For now write directly — config check is called separately before this
     success = await ha_client.write_config_file(filename, body.content)
     if success:
         state.config_files[filename] = body.content
-        return {"success": True, "message": f"{filename} written successfully."}
+        return {"success": True, "message": f"{filename} written."}
+    from fastapi import HTTPException
     raise HTTPException(status_code=500, detail=f"Failed to write {filename}.")
 
-# ── Config check ───────────────────────────────────────────────────────────────
+
 @app.post("/api/config/check")
 async def config_check():
-    result = await ha_client.run_config_check()
-    return result
+    return await ha_client.run_config_check()
 
-# ── Reload ─────────────────────────────────────────────────────────────────────
+
 class ReloadRequest(BaseModel):
     domains: List[str]
+
 
 @app.post("/api/reload")
 async def reload_domains(body: ReloadRequest):
@@ -228,32 +206,29 @@ async def reload_domains(body: ReloadRequest):
         results[domain] = "reloaded" if success else "failed"
     return {"results": results}
 
-# ── Logs ───────────────────────────────────────────────────────────────────────
+
 @app.get("/api/logs")
 async def get_logs(refresh: bool = False):
     if refresh:
         state.logs = await ha_client.get_error_log()
-    return {
-        "content": state.logs,
-        "lines": len(state.logs.split("\n")) if state.logs else 0,
-    }
+    return {"content": state.logs, "lines": len(state.logs.split("\n")) if state.logs else 0}
 
-# ── AI: Log analysis ───────────────────────────────────────────────────────────
+
 @app.post("/api/ai/analyze-logs")
 async def analyze_logs(refresh: bool = False):
     if refresh or not state.logs:
         state.logs = await ha_client.get_error_log()
     if not state.logs:
+        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="No logs available.")
-    result = await claude_client.analyze_logs(state.logs)
-    return result
+    return await claude_client.analyze_logs(state.logs)
 
-# ── AI: Health check ───────────────────────────────────────────────────────────
+
 @app.post("/api/ai/health-check")
 async def run_health_check(refresh: bool = False):
     if refresh:
         await load_all_data()
-    result = await claude_client.health_check(
+    return await claude_client.health_check(
         files=state.config_files,
         entities=state.entities,
         areas=state.areas,
@@ -261,9 +236,8 @@ async def run_health_check(refresh: bool = False):
         host_info=state.host_info,
         core_info=state.core_info,
     )
-    return result
 
-# ── System info ────────────────────────────────────────────────────────────────
+
 @app.get("/api/system")
 async def get_system_info():
     return {
@@ -272,12 +246,12 @@ async def get_system_info():
         "core": state.core_info.get("data", {}),
     }
 
-# ── Main ───────────────────────────────────────────────────────────────────────
+
 if __name__ == "__main__":
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
         port=8099,
         log_level=log_level.lower(),
-        access_log=False,
+        access_log=True,
     )
