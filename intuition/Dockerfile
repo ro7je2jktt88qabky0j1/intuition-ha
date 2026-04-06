@@ -18,5 +18,7 @@ RUN pip3 install --no-cache-dir --break-system-packages -r /tmp/requirements.txt
 # Copy app files
 COPY backend/ /app/backend/
 COPY frontend/ /app/frontend/
-COPY run.sh /run.sh
-RUN chmod a+x /run.sh
+
+# Place run.sh in the s6 legacy services location
+COPY run.sh /etc/services.d/intuition/run
+RUN chmod a+x /etc/services.d/intuition/run
