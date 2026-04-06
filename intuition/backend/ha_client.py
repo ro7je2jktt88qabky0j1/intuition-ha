@@ -1,15 +1,19 @@
 """
 Home Assistant API client for Intuition.
-Uses Supervisor token for elevated file access - no user token needed.
+Uses both direct filesystem access and Supervisor API.
 """
 
 import os
 import httpx
 from typing import Optional
+from pathlib import Path
 
 HA_URL = os.environ.get("HA_URL", "http://supervisor/core")
 SUPERVISOR_URL = os.environ.get("SUPERVISOR_URL", "http://supervisor")
 HA_TOKEN = os.environ.get("HA_TOKEN", "")
+
+# Direct config path - available inside the add-on container
+CONFIG_PATH = Path("/config")
 
 CONFIG_FILES = [
     "automations.yaml",
@@ -43,56 +47,39 @@ async def get_states() -> list:
 
 
 async def get_device_registry() -> list:
-    """Device registry not available via REST API — returns empty list."""
+    """Device registry not available via REST API."""
     return []
 
 
 async def get_area_registry() -> list:
-    """Get all areas via Supervisor core API."""
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.post(
-                f"{HA_URL}/api/config/area_registry/list",
-                headers=_ha_headers(),
-                json={},
-            )
-            if r.status_code == 200:
-                data = r.json()
-                return data.get("result", [])
-    except Exception:
-        pass
+    """Get areas — gracefully returns empty if unavailable."""
     return []
 
 
 async def read_config_file(filename: str) -> Optional[str]:
-    """Read a config file via Supervisor file manager API."""
+    """
+    Read config file directly from filesystem.
+    Add-ons have /config mounted as the HA config directory.
+    """
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.get(
-                f"{SUPERVISOR_URL}/files/config/{filename}",
-                headers=_ha_headers(),
-            )
-            if r.status_code == 200:
-                return r.text
-    except Exception:
-        pass
+        file_path = CONFIG_PATH / filename
+        if file_path.exists():
+            return file_path.read_text(encoding="utf-8")
+    except Exception as e:
+        import logging
+        logging.getLogger("intuition").warning(f"Could not read {filename} from filesystem: {e}")
     return None
 
 
 async def write_config_file(filename: str, content: str) -> bool:
-    """Write a config file via Supervisor file manager."""
+    """Write config file directly to filesystem."""
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.post(
-                f"{SUPERVISOR_URL}/files/config/{filename}",
-                headers={
-                    "Authorization": f"Bearer {HA_TOKEN}",
-                    "Content-Type": "application/octet-stream",
-                },
-                content=content.encode("utf-8"),
-            )
-            return r.status_code == 200
-    except Exception:
+        file_path = CONFIG_PATH / filename
+        file_path.write_text(content, encoding="utf-8")
+        return True
+    except Exception as e:
+        import logging
+        logging.getLogger("intuition").error(f"Could not write {filename}: {e}")
         return False
 
 
@@ -134,10 +121,9 @@ async def reload_domain(domain: str) -> bool:
 
 
 async def get_error_log() -> str:
-    """Fetch the HA error log via Supervisor."""
+    """Fetch logs via Supervisor."""
     try:
         async with httpx.AsyncClient(timeout=15) as client:
-            # Try Supervisor logging endpoint
             r = await client.get(
                 f"{SUPERVISOR_URL}/core/logs",
                 headers=_ha_headers(),
@@ -148,7 +134,6 @@ async def get_error_log() -> str:
         pass
     try:
         async with httpx.AsyncClient(timeout=15) as client:
-            # Fallback to HA REST API error log
             r = await client.get(
                 f"{HA_URL}/api/error_log",
                 headers=_ha_headers(),
@@ -174,17 +159,6 @@ async def get_entity_history(entity_id: str, days: int = 7) -> list:
             return r.json()
     except Exception:
         return []
-
-
-async def get_supervisor_info() -> dict:
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.get(f"{SUPERVISOR_URL}/info", headers=_ha_headers())
-            if r.status_code == 200:
-                return r.json()
-    except Exception:
-        pass
-    return {}
 
 
 async def get_core_info() -> dict:
