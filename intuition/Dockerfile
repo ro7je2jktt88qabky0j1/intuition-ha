@@ -22,8 +22,15 @@ RUN pip3 install --no-cache-dir --break-system-packages -r /app/requirements.txt
 # Copy application files
 COPY backend/ /app/backend/
 COPY frontend/ /app/frontend/
-COPY run.sh /run.sh
 
-RUN chmod +x /run.sh
+# Set up s6 service directory
+RUN mkdir -p /etc/services.d/intuition
 
-CMD ["/run.sh"]
+# Copy run script into s6 service
+COPY run.sh /etc/services.d/intuition/run
+RUN chmod +x /etc/services.d/intuition/run
+
+# Create s6 finish script
+RUN printf '#!/usr/bin/with-contenv bashio\nbashio::log.info "Intuition service stopped."\n' \
+    > /etc/services.d/intuition/finish && \
+    chmod +x /etc/services.d/intuition/finish
