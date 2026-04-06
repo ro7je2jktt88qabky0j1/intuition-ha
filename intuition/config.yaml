@@ -1,5 +1,5 @@
 name: Intuition
-version: "0.3.0"
+version: "0.4.0"
 slug: intuition
 description: AI-powered Home Assistant automation intelligence. Your home just knows.
 url: https://github.com/ro7je2jktt88qabky0j1/intuition-ha
@@ -15,6 +15,7 @@ build_from:
   armhf: ghcr.io/home-assistant/armhf-base:latest
   armv7: ghcr.io/home-assistant/armv7-base:latest
   i386: ghcr.io/home-assistant/i386-base:latest
+init: false
 startup: application
 boot: auto
 panel_icon: mdi:brain
