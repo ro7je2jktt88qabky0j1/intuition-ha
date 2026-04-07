@@ -95,9 +95,16 @@ async def serve_frontend():
 
 @app.get("/api/status")
 async def get_status():
+    # Version can be in ha_info directly or nested in core_info
+    ha_version = (
+        state.ha_info.get("version") or
+        state.core_info.get("data", {}).get("version") or
+        state.core_info.get("version") or
+        "unknown"
+    )
     return {
         "loaded": state.loaded,
-        "ha_version": state.ha_info.get("version", "unknown"),
+        "ha_version": ha_version,
         "entity_count": len(state.entities),
         "device_count": len(state.devices),
         "area_count": len(state.areas),
