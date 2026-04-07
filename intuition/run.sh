@@ -8,15 +8,18 @@ export LOG_LEVEL=$(bashio::config 'log_level')
 export HA_TOKEN="${SUPERVISOR_TOKEN}"
 export HA_URL="http://supervisor/core"
 export SUPERVISOR_URL="http://supervisor"
-
-# Get the ingress entry point for correct URL routing
 export INGRESS_ENTRY=$(bashio::addon.ingress_entry)
 
-bashio::log.info "Starting Intuition v0.9.0..."
+# Read version dynamically from config.yaml
+VERSION=$(bashio::addon.version)
+export INTUITION_VERSION="${VERSION}"
+
+bashio::log.info "Starting Intuition v${VERSION}..."
 bashio::log.info "Ingress entry: ${INGRESS_ENTRY}"
 
 if bashio::config.is_empty 'claude_api_key'; then
     bashio::log.warning "Claude API key not configured - AI features unavailable."
+    bashio::log.warning "Add your key in the add-on Configuration tab."
 fi
 
 cd /app/backend
