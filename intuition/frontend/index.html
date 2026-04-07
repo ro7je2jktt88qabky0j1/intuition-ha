@@ -471,14 +471,9 @@ async function init() {
 }
 
 // ── API HELPERS ───────────────────────────────────────────
-// Detect base path for ingress compatibility
-const BASE = (() => {
-  const scripts = document.getElementsByTagName('script');
-  // Use location pathname up to /ingress/ segment if present
-  const path = window.location.pathname;
-  const match = path.match(/^(.*?\/ingress\/[^/]+)/);
-  return match ? match[1] : '';
-})();
+// Base path injected by backend at serve time for HA ingress compatibility
+const BASE_PATH_PLACEHOLDER = '';
+const BASE = BASE_PATH_PLACEHOLDER;
 
 async function api(path, opts = {}) {
   const r = await fetch(`${BASE}/api${path}`, {
