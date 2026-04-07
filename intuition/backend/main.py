@@ -83,7 +83,13 @@ app = FastAPI(title="Intuition", lifespan=lifespan, root_path=ingress_entry)
 async def serve_frontend():
     index = frontend_path / "index.html"
     if index.exists():
-        return HTMLResponse(content=index.read_text())
+        html = index.read_text()
+        # Inject the ingress base path so frontend API calls use the correct URL
+        html = html.replace(
+            "const BASE_PATH_PLACEHOLDER = '';",
+            f"const BASE_PATH_PLACEHOLDER = '{ingress_entry}';"
+        )
+        return HTMLResponse(content=html)
     return HTMLResponse(content="<h1>Intuition</h1><p>Frontend not found.</p>")
 
 
