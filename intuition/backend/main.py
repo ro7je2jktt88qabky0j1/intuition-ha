@@ -232,23 +232,28 @@ async def analyze_logs(refresh: bool = False):
     if refresh or not state.logs:
         state.logs = await ha_client.get_error_log()
     if not state.logs:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=404, detail="No logs available.")
-    return await claude_client.analyze_logs(state.logs)
+        return {"error": "No logs available."}
+    try:
+        return await claude_client.analyze_logs(state.logs)
+    except Exception as e:
+        return {"error": str(e)}
 
 
 @app.post("/api/ai/health-check")
 async def run_health_check(refresh: bool = False):
     if refresh:
         await load_all_data()
-    return await claude_client.health_check(
-        files=state.config_files,
-        entities=state.entities,
-        areas=state.areas,
-        logs=state.logs,
-        host_info=state.host_info,
-        core_info=state.core_info,
-    )
+    try:
+        return await claude_client.health_check(
+            files=state.config_files,
+            entities=state.entities,
+            areas=state.areas,
+            logs=state.logs,
+            host_info=state.host_info,
+            core_info=state.core_info,
+        )
+    except Exception as e:
+        return {"error": str(e)}
 
 
 @app.get("/api/system")

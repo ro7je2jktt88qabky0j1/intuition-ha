@@ -8,7 +8,7 @@ import httpx
 from typing import Optional
 
 CLAUDE_API_KEY = os.environ.get("CLAUDE_API_KEY", "")
-CLAUDE_MODEL = "claude-sonnet-4-20250514"
+CLAUDE_MODEL = "claude-sonnet-4-5"
 CLAUDE_API_URL = "https://api.anthropic.com/v1/messages"
 
 
@@ -90,12 +90,15 @@ Rules:
                 "messages": [{"role": "user", "content": user}],
             },
         )
-        r.raise_for_status()
+        if not r.is_success:
+            error_detail = r.text
+            import logging
+            logging.getLogger("intuition").error(f"Claude API error {r.status_code}: {error_detail}")
+            return {"error": f"Claude API error {r.status_code}: {error_detail[:200]}"}
         data = r.json()
         text = data["content"][0]["text"]
 
         import json
-        # Strip any markdown fences if present
         text = text.strip()
         if text.startswith("```"):
             text = text.split("```")[1]
@@ -213,7 +216,11 @@ Architecture: {host_info.get('data', {}).get('chassis', 'unknown')}
                 "messages": [{"role": "user", "content": user}],
             },
         )
-        r.raise_for_status()
+        if not r.is_success:
+            error_detail = r.text
+            import logging
+            logging.getLogger("intuition").error(f"Claude API error {r.status_code}: {error_detail}")
+            return {"error": f"Claude API error {r.status_code}: {error_detail[:200]}"}
         data = r.json()
         text = data["content"][0]["text"].strip()
         if text.startswith("```"):
