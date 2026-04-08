@@ -135,6 +135,7 @@ async def health_check(
     logs: str,
     host_info: dict,
     core_info: dict,
+    integration_issues: list = None,
 ) -> dict:
     """
     Full system health check across YAML, entities, logs, and hardware.
@@ -157,6 +158,13 @@ SPEAKER/AUDIO AUTOMATIONS: Automations that trigger audio scripts (audio_group_a
 
 ## WHAT TO ACTUALLY CHECK
 
+INTEGRATION HEALTH (always check this first):
+- Any integration in setup_error, setup_retry, not_loaded, or failed_unload state is a real issue
+- setup_retry means it failed but is trying again — common for cloud services that went offline
+- setup_error means it permanently failed — needs user attention
+- Always identify what likely caused it (device powered off, cloud service down, credentials expired, etc.)
+- If SmartThings or similar cloud integration fails repeatedly, distinguish between "service outage" and "your config problem"
+
 REAL ISSUES TO FIND:
 - Entity IDs referenced in YAML that do not exist in the live entity registry
 - Helpers (input_boolean, input_button, timer) defined in YAML but never referenced anywhere
@@ -165,6 +173,12 @@ REAL ISSUES TO FIND:
 - Unavailable entities that are core integrations (not mobile app sensors — those being unavailable is normal)
 - Integration errors in logs that indicate real configuration problems
 - Hardware concerns from system info
+
+UNIFI PROTECT / SUPERLINK SENSORS:
+- UniFi SuperLink sensors (USL-Entry, USL-Motion, etc.) paired to cameras via Protect will show some entities as unavailable
+- If the Contact or Motion entity works but Humidity/Temperature/Illuminance/Moisture are unavailable, this is a known integration limitation — the Protect integration does not yet fully support all SuperLink sensor types
+- Do NOT flag SuperLink environmental sensor unavailability as a problem unless the primary sensor (Contact/Motion) is also unavailable
+- If a SuperLink Contact sensor is unavailable, check UniFi Protect integration connection, not batteries
 
 LOW PRIORITY / INFORMATIONAL ONLY:
 - Mobile app sensors unavailable (normal when phones are locked/offline)
@@ -203,6 +217,23 @@ Return ONLY valid JSON with this structure:
 
     file_context = "\n\n".join(file_summaries)
 
+    # Build integration issues text
+    if integration_issues:
+        issue_lines = []
+        for issue in integration_issues:
+            state = issue.get("state", "")
+            state_desc = {
+                "setup_error": "FAILED (not retrying)",
+                "setup_retry": "FAILING (retrying automatically)",
+                "not_loaded": "NOT LOADED",
+                "failed_unload": "ERROR during unload",
+                "migration_error": "MIGRATION ERROR",
+            }.get(state, state)
+            issue_lines.append(f"- {issue['title']} ({issue['domain']}): {state_desc}")
+        integration_issues_text = "The following integrations have problems:\n" + "\n".join(issue_lines)
+    else:
+        integration_issues_text = "All integrations loaded successfully."
+
     entity_ids = [e["entity_id"] for e in entities]
     unavailable = [e["entity_id"] for e in entities if e.get("state") in ["unavailable", "unknown"]]
     # Filter out mobile app sensors from unavailable count for display
@@ -223,6 +254,9 @@ All entity IDs (first 300): {', '.join(entity_ids[:300])}
 
 ## AREAS
 {', '.join([a.get('name', '') for a in areas]) or 'None configured'}
+
+## INTEGRATION HEALTH (from config entries API)
+{integration_issues_text}
 
 ## SYSTEM INFO
 HA Version: {core_info.get('data', {}).get('version', 'unknown')}

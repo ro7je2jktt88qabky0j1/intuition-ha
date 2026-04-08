@@ -41,6 +41,7 @@ class AppState:
         self.logs = ""
         self.host_info = {}
         self.core_info = {}
+        self.integration_issues = []
         self.loaded = False
 
 state = AppState()
@@ -78,6 +79,11 @@ async def load_all_data():
 
         logger.info("Building dependency map...")
         state.dependency_map = ha_client.build_dependency_map(discovered)
+
+        logger.info("Checking integration health...")
+        state.integration_issues = await ha_client.get_integration_issues()
+        if state.integration_issues:
+            logger.warning(f"Found {len(state.integration_issues)} integration(s) with issues: {[i['title'] for i in state.integration_issues]}")
 
         logger.info("Loading logs...")
         state.logs = await ha_client.get_error_log()
@@ -136,6 +142,7 @@ async def get_status():
         "files_loaded": list(state.config_files.keys()),
         "files_count": len(state.config_files),
         "claude_configured": claude_client.is_configured(),
+        "integration_issues": len(state.integration_issues),
     }
 
 
@@ -289,6 +296,7 @@ async def run_health_check(refresh: bool = False):
             logs=state.logs,
             host_info=state.host_info,
             core_info=state.core_info,
+            integration_issues=state.integration_issues,
         )
     except Exception as e:
         return {"error": str(e)}
