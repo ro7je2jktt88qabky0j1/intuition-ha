@@ -341,7 +341,6 @@ mark{background:#c8933a40;color:var(--amber);border-radius:2px}
           <div class="page-subtitle">AI-powered analysis of your system logs</div>
           <div class="page-actions">
             <button class="tb-btn primary" id="btn-analyze-logs" onclick="runLogReview()">⊛ Analyze Logs</button>
-            <button class="tb-btn" onclick="runLogReview(true)">↺ Refresh & Analyze</button>
           </div>
         </div>
         <div class="page-body" id="log-review-body">
@@ -356,7 +355,6 @@ mark{background:#c8933a40;color:var(--amber);border-radius:2px}
           <div class="page-subtitle">Full system analysis across automations, entities, logs, and hardware</div>
           <div class="page-actions">
             <button class="tb-btn primary" id="btn-health-check" onclick="runHealthCheck()">♡ Run Health Check</button>
-            <button class="tb-btn" onclick="runHealthCheck(true)">↺ Refresh & Check</button>
           </div>
         </div>
         <div class="page-body" id="health-body">
@@ -666,13 +664,13 @@ async function loadLogs(refresh = false) {
 }
 
 // ── AI: Log review ────────────────────────────────────────────────────────────
-async function runLogReview(refresh = false) {
+async function runLogReview() {
   const body = document.getElementById('log-review-body');
   const btn = document.getElementById('btn-analyze-logs');
   btn.disabled = true;
-  body.innerHTML = `<div style="display:flex;align-items:center;gap:12px;padding:20px;color:var(--t2);font-size:13px;"><div class="thinking-dots"><span></span><span></span><span></span></div>Analyzing logs with AI...</div>`;
+  body.innerHTML = `<div style="display:flex;align-items:center;gap:12px;padding:20px;color:var(--t2);font-size:13px;"><div class="thinking-dots"><span></span><span></span><span></span></div>Fetching latest logs and analyzing...</div>`;
   try {
-    const data = await api(`/ai/analyze-logs${refresh ? '?refresh=true' : ''}`, { method: 'POST' });
+    const data = await api(`/ai/analyze-logs?refresh=true`, { method: 'POST' });
     renderLogReview(data);
   } catch(e) {
     body.innerHTML = `<div class="card" style="color:var(--red);">Error: ${escHtml(e.message)}</div>`;
@@ -717,13 +715,13 @@ function renderLogReview(data) {
 }
 
 // ── AI: Health check ──────────────────────────────────────────────────────────
-async function runHealthCheck(refresh = false) {
+async function runHealthCheck() {
   const body = document.getElementById('health-body');
   const btn = document.getElementById('btn-health-check');
   btn.disabled = true;
-  body.innerHTML = `<div style="display:flex;align-items:center;gap:12px;padding:20px;color:var(--t2);font-size:13px;"><div class="thinking-dots"><span></span><span></span><span></span></div>Running full health check — this may take a moment...</div>`;
+  body.innerHTML = `<div style="display:flex;align-items:center;gap:12px;padding:20px;color:var(--t2);font-size:13px;"><div class="thinking-dots"><span></span><span></span><span></span></div>Fetching latest data and running health check...</div>`;
   try {
-    const data = await api(`/ai/health-check${refresh ? '?refresh=true' : ''}`, { method: 'POST' });
+    const data = await api(`/ai/health-check?refresh=true`, { method: 'POST' });
     renderHealthCheck(data);
   } catch(e) {
     body.innerHTML = `<div class="card" style="color:var(--red);">Error: ${escHtml(e.message)}</div>`;
