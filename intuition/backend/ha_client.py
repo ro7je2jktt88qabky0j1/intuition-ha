@@ -31,7 +31,7 @@ RELEVANT_KEYS = {
 }
 
 # Integration states that indicate problems
-PROBLEM_STATES = {"setup_error", "setup_retry", "not_loaded", "failed_unload", "migration_error"}
+PROBLEM_STATES = {"setup_error", "setup_retry", "failed_unload", "migration_error"}
 
 
 def _ha_headers():
@@ -88,18 +88,30 @@ async def get_config_entries() -> list:
 
 async def get_integration_issues() -> list:
     """
-    Return only config entries that have problems.
-    Filters out disabled entries (intentionally not_loaded).
+    Return only config entries that have definite problems.
+
+    Rules:
+    - setup_error: always flag — integration failed and is not retrying
+    - setup_retry: always flag — integration is actively failing (will retry)
+    - not_loaded: only flag if disabled_by is set to something other than
+      'user' or 'config_entry' — meaning HA itself disabled it due to an error.
+      If the user disabled it intentionally, skip it.
+      If disabled_by is None, skip it — not_loaded with no disable reason
+      usually means the integration is managed by another entry (e.g. Lutron
+      via HomeKit Controller) and is NOT actually broken.
+    - failed_unload / migration_error: always flag
     """
     entries = await get_config_entries()
     issues = []
     for entry in entries:
         state = entry.get("state", "")
         disabled_by = entry.get("disabled_by")
-        # Skip intentionally disabled integrations
-        if disabled_by:
-            continue
-        if state in PROBLEM_STATES:
+
+        # setup_error and setup_retry are always real problems
+        if state in ("setup_error", "setup_retry", "failed_unload", "migration_error"):
+            # Skip if user intentionally disabled it
+            if disabled_by in ("user", "config_entry"):
+                continue
             issues.append({
                 "title": entry.get("title", entry.get("domain", "Unknown")),
                 "domain": entry.get("domain", ""),
@@ -107,6 +119,19 @@ async def get_integration_issues() -> list:
                 "entry_id": entry.get("entry_id", ""),
                 "reason": entry.get("reason", ""),
             })
+
+        # not_loaded is only a problem if HA disabled it (not the user)
+        elif state == "not_loaded":
+            if disabled_by and disabled_by not in ("user", "config_entry"):
+                issues.append({
+                    "title": entry.get("title", entry.get("domain", "Unknown")),
+                    "domain": entry.get("domain", ""),
+                    "state": state,
+                    "entry_id": entry.get("entry_id", ""),
+                    "reason": entry.get("reason", ""),
+                    "disabled_by": disabled_by,
+                })
+
     return issues
 
 
