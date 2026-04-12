@@ -525,21 +525,31 @@ async function runStatusRefresh() {
   btn.disabled = true; btn.textContent = 'Refreshing...';
 
   // Set cards to loading state
-  ['system','integrations','entities','logs'].forEach(k => {
-    document.getElementById(`sc-${k}`).className = 'status-card unchecked';
-    document.getElementById(`dot-${k}`).className = 'sc-dot';
-    document.getElementById(`val-${k}`).className = 'sc-value unchecked';
-    document.getElementById(`val-${k}`).textContent = '...';
+  ['system','integrations','backup','logs'].forEach(k => {
+    const card = document.getElementById(`sc-${k}`);
+    const val = document.getElementById(`val-${k}`);
+    if (card) card.className = 'status-card unchecked';
+    if (val) { val.className = 'sc-value unchecked'; val.textContent = '...'; }
   });
+  // Resources loading state
+  const resCard = document.getElementById('sc-resources');
+  if (resCard) resCard.className = 'status-card unchecked';
+  const resUnchecked = document.getElementById('resources-unchecked');
+  const resMetrics = document.getElementById('resources-metrics');
+  if (resUnchecked) { resUnchecked.style.display = 'block'; resUnchecked.textContent = '...'; }
+  if (resMetrics) resMetrics.style.display = 'none';
 
   try {
     const data = await api('/health/status', { method: 'POST' });
     renderStatusCards(data);
     document.getElementById('status-timestamp').textContent = `Last checked: ${fmtTime(new Date())}`;
   } catch(e) {
-    ['system','integrations','entities','logs'].forEach(k => {
-      document.getElementById(`val-${k}`).textContent = 'Error';
+    ['system','integrations','backup','logs'].forEach(k => {
+      const val = document.getElementById(`val-${k}`);
+      if (val) val.textContent = 'Error';
     });
+    const ru = document.getElementById('resources-unchecked');
+    if (ru) ru.textContent = 'Error';
   } finally {
     btn.disabled = false; btn.textContent = '↺ Refresh Status';
   }
