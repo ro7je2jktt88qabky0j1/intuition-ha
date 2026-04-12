@@ -4,6 +4,7 @@ FastAPI backend with HA ingress support and dynamic config discovery.
 """
 
 import os
+import asyncio
 import re
 import logging
 from pathlib import Path
@@ -150,7 +151,6 @@ async def health_status():
     await load_all_data()
 
     # Fetch new data sources in parallel
-    import asyncio
     update_info, backup_info, resources = await asyncio.gather(
         ha_client.get_update_info(),
         ha_client.get_backup_info(),
