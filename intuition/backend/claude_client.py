@@ -65,44 +65,6 @@ async def _call_claude(system: str, user: str, max_tokens: int = 4000, timeout: 
         return data["content"][0]["text"]
 
 
-async def _call_claude_with_search(system: str, user: str, max_tokens: int = 3000, timeout: int = 120) -> str:
-    """Make a Claude API call with web search tool enabled."""
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        r = await client.post(
-            CLAUDE_API_URL,
-            headers=_headers(),
-            json={
-                "model": CLAUDE_MODEL,
-                "max_tokens": max_tokens,
-                "system": system,
-                "tools": [
-                    {
-                        "type": "web_search_20250305",
-                        "name": "web_search",
-                    }
-                ],
-                "messages": [{"role": "user", "content": user}],
-            },
-        )
-        if not r.is_success:
-            error_body = r.text
-            try:
-                error_data = json.loads(error_body)
-                error_msg = error_data.get("error", {}).get("message", error_body)
-            except Exception:
-                error_msg = error_body[:300]
-            logger.error(f"Claude API error {r.status_code}: {error_msg}")
-            raise ValueError(f"Claude API error: {error_msg}")
-        data = r.json()
-        # With tools, response may have multiple content blocks
-        # Extract all text blocks and join them
-        text_parts = []
-        for block in data.get("content", []):
-            if block.get("type") == "text":
-                text_parts.append(block["text"])
-        return "".join(text_parts)
-
-
 async def analyze_logs(log_content: str) -> dict:
     """
     Analyze HA error log and return categorized plain English report.
@@ -346,7 +308,7 @@ async def health_ai(findings: dict) -> dict:
     if not is_configured():
         return {"error": "Claude API key not configured."}
 
-    system = """You are an expert Home Assistant system analyst. You receive structured health scan findings and use web search to look up actual release notes for any pending updates.
+    system = """You are an expert Home Assistant system analyst. You receive structured health scan findings and provide an honest, clear assessment.
 
 ## KNOWN CONTEXT — DO NOT FLAG THESE
 - Mobile app sensors being unavailable is normal when phones are locked or offline
@@ -354,14 +316,24 @@ async def health_ai(findings: dict) -> dict:
 - Input button state triggers are correct modern HA pattern
 - setup_retry on printer integrations usually means the printer is powered off
 
-## YOUR JOB
-You MUST do ALL of the following:
-1. For EACH pending update in pending_updates: use web search to find the actual release notes. Search for "[component name] [version] release notes changelog". Read what actually changed.
-2. Address any integration_issues — explain what each means and likely cause
-3. Summarize log errors — group related ones, explain what they mean
-4. Give an overall system health assessment
+## UPDATE ASSESSMENT — HONESTY RULES
+You do NOT have access to the actual release notes. Be transparent about this.
+- Always set notes_available to false
+- For what_changed: state only what can be reasonably inferred from the version number pattern. Do NOT invent specific details.
+  - Patch release (x.x.1 → x.x.2): "Patch release — specific changes unknown without release notes. Patch releases typically address bug fixes and stability issues."
+  - Minor release (x.4 → x.5): "Minor release — specific changes unknown without release notes. Minor releases typically introduce new features and may occasionally include breaking changes."
+  - Major release (x → y): "Major release — specific changes unknown without release notes. Major releases should be reviewed carefully before applying."
+- For urgency: default to when_convenient for patch/minor releases unless you have specific knowledge of a security issue in this version range
+- Never use phrases like "likely includes", "probably contains", or "may have" — just state what you know and what you don't
 
-After searching, return ONLY this JSON structure with no markdown, no preamble:
+## YOUR JOB
+You MUST address ALL of the following:
+1. Any integration_issues — explain what each means and likely cause
+2. Any pending_updates — assess each honestly based on version pattern only
+3. Log errors — summarize and group related ones
+4. Overall system health
+
+Return ONLY this JSON structure with no markdown, no preamble:
 {
   "overall": "excellent|good|fair|poor",
   "summary": "2-3 sentences. Plain English current state of the system.",
@@ -379,12 +351,13 @@ After searching, return ONLY this JSON structure with no markdown, no preamble:
       "current": "current version",
       "latest": "latest version",
       "urgency": "asap|soon|when_convenient|optional",
-      "urgency_reason": "One sentence explaining why this urgency level — e.g. contains security fix CVE-xxxx, or bug fix for known issue, or routine maintenance",
-      "what_changed": "2-3 sentences describing what actually changed based on release notes. Be specific — name actual features, fixes, or security patches. Do not be vague.",
+      "urgency_reason": "One honest sentence — e.g. patch release, low urgency or security fix known in this version range",
+      "what_changed": "Honest statement of what can be inferred from version pattern only. Do not guess specifics.",
+      "notes_available": false,
       "apply_risk": "very_low|low|medium|high",
-      "apply_risk_detail": "One sentence on risk of applying this update — patch releases are almost always safe, minor releases occasionally have breaking changes",
+      "apply_risk_detail": "One sentence — patch releases are very low risk, minor releases are low-medium risk",
       "skip_risk": "none|low|medium|high",
-      "skip_risk_detail": "One sentence on risk of NOT applying — low for cosmetic updates, medium for bug fixes affecting stability, high for security patches"
+      "skip_risk_detail": "One sentence — low for routine updates, higher if security related"
     }
   ],
   "positive_notes": [
@@ -394,18 +367,18 @@ After searching, return ONLY this JSON structure with no markdown, no preamble:
 }
 
 Urgency rules:
-- asap: security vulnerability or critical bug causing data loss
-- soon: important bug fix or stability improvement, apply within a few days
-- when_convenient: minor improvements, apply at next maintenance window
-- optional: cosmetic or niche, fine to skip
+- asap: known security vulnerability in this version
+- soon: known critical bug in this version
+- when_convenient: patch or minor release, no known urgent issues
+- optional: very minor or cosmetic
 
 Return ONLY the JSON object."""
 
     import json
-    user = f"Analyze these Home Assistant health scan findings and search for release notes on any pending updates:\n\n{json.dumps(findings, indent=2)}"
+    user = f"Analyze these Home Assistant health scan findings:\n\n{json.dumps(findings, indent=2)}"
 
     try:
-        text = await _call_claude_with_search(system, user, max_tokens=3000, timeout=120)
+        text = await _call_claude(system, user, max_tokens=3000, timeout=120)
         return _parse_json_response(text)
     except ValueError as e:
         return {"error": str(e)}
