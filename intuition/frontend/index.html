@@ -12,9 +12,9 @@
   --b1:#2e3441;--b2:#384050;
   --accent:#5b8db8;--accent-soft:#5b8db815;--accent-mid:#3a6080;
   --steel:#7a9ab5;--steel-soft:#7a9ab510;
-  --green:#4caf82;--green-soft:#4caf8215;
-  --amber:#c8933a;--amber-soft:#c8933a15;
-  --red:#c0504a;--red-soft:#c0504a15;
+  --green:#4caf82;--green-soft:#4caf8215;--green-border:#4caf8230;
+  --amber:#c8933a;--amber-soft:#c8933a15;--amber-border:#c8933a30;
+  --red:#c0504a;--red-soft:#c0504a15;--red-border:#c0504a30;
   --t1:#dde3ec;--t2:#8d9bae;--t3:#515d6e;
   --sans:'DM Sans',system-ui,sans-serif;
   --mono:'DM Mono',monospace;
@@ -44,6 +44,8 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:var(--san
 .tb-btn:disabled{opacity:.4;cursor:not-allowed}
 .tb-btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
 .tb-btn.primary:hover{opacity:.85}
+.tb-btn.success{background:var(--green);color:#000;border-color:var(--green)}
+.tb-btn.success:hover{opacity:.85}
 
 /* sidebar */
 #sidebar{background:var(--s1);border-right:1px solid var(--b1);display:flex;flex-direction:column;overflow:hidden}
@@ -52,8 +54,10 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:var(--san
 .nav-item{display:flex;align-items:center;gap:10px;padding:8px 16px;cursor:pointer;font-size:13px;font-weight:400;color:var(--t2);border-left:2px solid transparent;transition:all .15s}
 .nav-item:hover{background:var(--s2);color:var(--t1)}
 .nav-item.active{color:var(--accent);border-left-color:var(--accent);background:var(--accent-soft);font-weight:500}
+.nav-item.disabled{opacity:.4;cursor:default;pointer-events:none}
 .nav-icon{font-size:15px;width:18px;text-align:center;opacity:.7}
 .nav-item.active .nav-icon{opacity:1}
+.nav-soon{font-size:9px;color:var(--t3);background:var(--s3);border:1px solid var(--b1);border-radius:8px;padding:1px 6px;margin-left:auto;letter-spacing:.06em}
 .sidebar-stats{padding:16px;border-top:1px solid var(--b1);margin-top:auto}
 .stat-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0}
 .stat-label{font-size:11px;color:var(--t3)}
@@ -69,18 +73,66 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:var(--san
 .page-actions{display:flex;gap:8px;margin-top:16px}
 .page-body{flex:1;overflow-y:auto;padding:24px 28px}
 
+/* dashboard sections */
+.dash-section{margin-bottom:28px}
+.dash-section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.dash-section-title{font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.1em}
+.dash-section-meta{display:flex;align-items:center;gap:10px}
+.dash-timestamp{font-size:10px;color:var(--t3);font-family:var(--mono)}
+.dash-divider{height:1px;background:var(--b1);margin:24px 0}
+
+/* status cards */
+.status-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.status-card{background:var(--s2);border:1px solid var(--b1);border-radius:var(--rl);padding:16px;transition:border-color .2s}
+.status-card.ok{border-color:var(--green-border)}
+.status-card.warn{border-color:var(--amber-border)}
+.status-card.error{border-color:var(--red-border)}
+.status-card.unchecked{border-color:var(--b1)}
+.sc-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.sc-label{font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.08em}
+.sc-dot{width:8px;height:8px;border-radius:50%;background:var(--t3);flex-shrink:0;transition:all .3s}
+.sc-dot.ok{background:var(--green);box-shadow:0 0 6px var(--green)}
+.sc-dot.warn{background:var(--amber)}
+.sc-dot.error{background:var(--red);box-shadow:0 0 6px var(--red)}
+.sc-value{font-size:22px;font-weight:300;color:var(--t1);font-family:var(--mono);line-height:1;margin-bottom:4px}
+.sc-value.ok{color:var(--green)}
+.sc-value.warn{color:var(--amber)}
+.sc-value.error{color:var(--red)}
+.sc-value.unchecked{color:var(--t3);font-size:13px;font-family:var(--sans);font-weight:400;margin-top:4px}
+.sc-sub{font-size:11px;color:var(--t3)}
+.sc-issues{margin-top:8px}
+.sc-issue{font-size:10px;color:var(--amber);padding:2px 0;font-family:var(--mono)}
+.sc-issue.error{color:var(--red)}
+
+/* AI summary panel */
+.ai-summary-panel{background:var(--s2);border:1px solid var(--b1);border-radius:var(--rl);overflow:hidden}
+.ai-summary-unchecked{padding:28px;text-align:center;color:var(--t3)}
+.ai-summary-unchecked-icon{font-size:28px;margin-bottom:8px;opacity:.3}
+.ai-summary-unchecked-text{font-size:13px}
+.ai-summary-content{padding:20px}
+.ai-overall{font-size:22px;font-weight:300;margin-bottom:8px}
+.ai-overall.excellent,.ai-overall.good{color:var(--green)}
+.ai-overall.fair{color:var(--amber)}
+.ai-overall.poor{color:var(--red)}
+.ai-summary-text{font-size:13px;color:var(--t2);line-height:1.7;margin-bottom:16px}
+.ai-priority-items{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+.ai-priority-item{padding:12px 14px;background:var(--s3);border-radius:var(--r);border-left:3px solid var(--b2)}
+.ai-priority-item.high{border-left-color:var(--red)}
+.ai-priority-item.medium{border-left-color:var(--amber)}
+.ai-priority-item.low{border-left-color:var(--steel)}
+.ai-pi-title{font-size:12px;font-weight:500;color:var(--t1);margin-bottom:3px}
+.ai-pi-detail{font-size:11px;color:var(--t2);line-height:1.5}
+.ai-pi-action{font-size:11px;color:var(--accent);margin-top:5px}
+.ai-positives{display:flex;flex-direction:column;gap:4px}
+.ai-positive{font-size:12px;color:var(--t2);display:flex;gap:6px}
+.ai-positive::before{content:"✓";color:var(--green);flex-shrink:0;font-weight:600}
+.ai-log-rec{margin-top:14px;padding:10px 14px;background:var(--amber-soft);border:1px solid var(--amber-border);border-radius:var(--r);font-size:12px;color:var(--amber);cursor:pointer}
+.ai-log-rec:hover{background:#c8933a25}
+
 /* cards */
 .card{background:var(--s2);border:1px solid var(--b1);border-radius:var(--rl);padding:20px;margin-bottom:16px}
 .card-title{font-size:13px;font-weight:600;color:var(--t1);margin-bottom:4px}
 .card-sub{font-size:12px;color:var(--t2);margin-bottom:16px}
-
-/* stats grid */
-.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px}
-.stat-card{background:var(--s2);border:1px solid var(--b1);border-radius:var(--rl);padding:16px 20px}
-.stat-card-value{font-size:28px;font-weight:300;color:var(--t1);font-family:var(--mono);line-height:1}
-.stat-card-label{font-size:11px;color:var(--t3);margin-top:6px;text-transform:uppercase;letter-spacing:.08em;font-weight:500}
-.stat-card.accent{border-color:var(--accent-mid)}
-.stat-card.accent .stat-card-value{color:var(--accent)}
 
 /* file list */
 .file-list{display:flex;flex-direction:column;gap:6px}
@@ -91,8 +143,7 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:var(--san
 .file-item-key{font-size:10px;color:var(--t3);font-family:var(--mono)}
 .file-item-meta{font-size:11px;color:var(--t3)}
 .file-badge{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600;letter-spacing:.05em}
-.file-badge.loaded{background:var(--green-soft);color:var(--green);border:1px solid #4caf8230}
-.file-badge.missing{background:var(--amber-soft);color:var(--amber);border:1px solid #c8933a30}
+.file-badge.loaded{background:var(--green-soft);color:var(--green);border:1px solid var(--green-border)}
 
 /* entity table */
 .entity-table{width:100%;border-collapse:collapse}
@@ -120,14 +171,13 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:var(--san
 .yaml-search:focus{border-color:var(--accent)}
 .yaml-search::placeholder{color:var(--t3)}
 .yaml-search-info{font-size:10px;color:var(--t3);font-family:var(--mono);white-space:nowrap}
-#yaml-scroll{flex:1;overflow:auto;padding:0}
+#yaml-scroll{flex:1;overflow:auto}
 .yaml-code{display:flex;font-family:var(--mono);font-size:11px;line-height:1.7}
 .yaml-line-numbers{padding:12px 0;text-align:right;user-select:none;flex-shrink:0;background:var(--s1);border-right:1px solid var(--b1);min-width:48px}
 .yaml-line-num{padding:0 12px;color:var(--t3);font-size:10px;display:block;line-height:1.7}
 .yaml-line-num.highlight{color:var(--accent);background:var(--accent-soft)}
 .yaml-lines{flex:1;padding:12px 16px;white-space:pre;color:var(--t2);overflow-x:auto}
 .yaml-line{display:block;line-height:1.7}
-.yaml-line.highlight{background:var(--accent-soft);color:var(--t1)}
 .yaml-line.search-match{background:#c8933a20;color:var(--amber)}
 mark{background:#c8933a40;color:var(--amber);border-radius:2px}
 
@@ -138,30 +188,33 @@ mark{background:#c8933a40;color:var(--amber);border-radius:2px}
 .log-line.warning{color:var(--amber)}
 .log-line.info{color:var(--t3)}
 
-/* AI panels */
+/* AI panels (log review) */
 .ai-panel{background:var(--s2);border:1px solid var(--b1);border-radius:var(--rl);overflow:hidden;margin-bottom:16px}
 .ai-panel-header{padding:14px 18px;border-bottom:1px solid var(--b1);display:flex;align-items:center;gap:10px}
 .ai-panel-title{font-size:13px;font-weight:600;color:var(--t1)}
 .ai-panel-body{padding:18px}
 .sev{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600;letter-spacing:.05em}
-.sev.critical,.sev.high{background:var(--red-soft);color:var(--red);border:1px solid #c0504a30}
-.sev.medium{background:var(--amber-soft);color:var(--amber);border:1px solid #c8933a30}
+.sev.critical,.sev.high{background:var(--red-soft);color:var(--red);border:1px solid var(--red-border)}
+.sev.medium{background:var(--amber-soft);color:var(--amber);border:1px solid var(--amber-border)}
 .sev.low,.sev.info{background:var(--steel-soft);color:var(--steel);border:1px solid #7a9ab530}
-.sev.ok{background:var(--green-soft);color:var(--green);border:1px solid #4caf8230}
+.sev.ok{background:var(--green-soft);color:var(--green);border:1px solid var(--green-border)}
 .ai-item{padding:12px 0;border-bottom:1px solid var(--b1)}
 .ai-item:last-child{border-bottom:none;padding-bottom:0}
 .ai-item-header{display:flex;align-items:center;gap:8px;margin-bottom:6px}
 .ai-item-title{font-size:13px;font-weight:500;color:var(--t1)}
 .ai-item-detail{font-size:12px;color:var(--t2);line-height:1.6}
 .ai-item-action{font-size:12px;color:var(--accent);margin-top:6px;padding:6px 10px;background:var(--accent-soft);border-radius:var(--r)}
-.health-status{font-size:24px;font-weight:300;margin-bottom:8px}
-.health-status.excellent,.health-status.good{color:var(--green)}
-.health-status.fair{color:var(--amber)}
-.health-status.poor{color:var(--red)}
 .quick-wins{list-style:none}
 .quick-wins li{padding:8px 0;border-bottom:1px solid var(--b1);font-size:12px;color:var(--t2);display:flex;gap:8px}
 .quick-wins li::before{content:"→";color:var(--accent);font-weight:600;flex-shrink:0}
 .quick-wins li:last-child{border-bottom:none}
+
+/* coming soon */
+.coming-soon{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:16px;color:var(--t3);padding:60px}
+.coming-soon-icon{font-size:40px;opacity:.25}
+.coming-soon-title{font-size:16px;font-weight:500;color:var(--t2)}
+.coming-soon-text{font-size:13px;text-align:center;line-height:1.6;max-width:400px}
+.coming-soon-badge{font-size:11px;padding:4px 12px;border-radius:20px;border:1px solid var(--b2);color:var(--t3);font-family:var(--mono)}
 
 /* thinking */
 .thinking-dots{display:inline-flex;gap:4px;align-items:center}
@@ -170,22 +223,17 @@ mark{background:#c8933a40;color:var(--amber);border-radius:2px}
 .thinking-dots span:nth-child(3){animation-delay:.4s}
 @keyframes thr{0%,100%{opacity:.2;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}
 
-/* search input */
 .search-input{width:100%;padding:9px 14px;background:var(--s3);border:1px solid var(--b1);border-radius:var(--r);color:var(--t1);font-family:var(--sans);font-size:13px;outline:none;transition:border-color .15s;margin-bottom:16px}
 .search-input:focus{border-color:var(--accent)}
 .search-input::placeholder{color:var(--t3)}
-
-/* empty state */
 .empty-state{text-align:center;padding:60px 20px;color:var(--t3)}
 .empty-state-icon{font-size:36px;margin-bottom:12px;opacity:.4}
 .empty-state-text{font-size:14px}
 
-/* scrollbars */
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px}
 ::-webkit-scrollbar-thumb:hover{background:var(--t3)}
-
 @keyframes fadeUp{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 .fade-in{animation:fadeUp .2s ease forwards}
 </style>
@@ -225,7 +273,7 @@ mark{background:#c8933a40;color:var(--amber);border-radius:2px}
       <div class="nav-section">
         <div class="nav-label">Intelligence</div>
         <div class="nav-item" data-page="log-review" onclick="showPage('log-review',this)"><span class="nav-icon">⊛</span>Log Review</div>
-        <div class="nav-item" data-page="health" onclick="showPage('health',this)"><span class="nav-icon">♡</span>Health Check</div>
+        <div class="nav-item disabled" data-page="auto-review"><span class="nav-icon">⟳</span>Automation Review<span class="nav-soon">SOON</span></div>
       </div>
       <div class="sidebar-stats">
         <div class="stat-row"><span class="stat-label">HA Version</span><span class="stat-value" id="stat-version">—</span></div>
@@ -241,32 +289,66 @@ mark{background:#c8933a40;color:var(--amber);border-radius:2px}
       <div class="page active" id="page-dashboard">
         <div class="page-header">
           <div class="page-title">Dashboard</div>
-          <div class="page-subtitle">System overview and quick access</div>
+          <div class="page-subtitle">System status and health overview</div>
         </div>
         <div class="page-body">
-          <div class="stats-grid">
-            <div class="stat-card"><div class="stat-card-value" id="dash-entities">—</div><div class="stat-card-label">Entities</div></div>
-            <div class="stat-card"><div class="stat-card-value" id="dash-unavailable">—</div><div class="stat-card-label">Unavailable</div></div>
-            <div class="stat-card"><div class="stat-card-value" id="dash-files">—</div><div class="stat-card-label">Files Loaded</div></div>
-            <div class="stat-card accent"><div class="stat-card-value" id="dash-version">—</div><div class="stat-card-label">HA Version</div></div>
-          </div>
-          <div class="card">
-            <div class="card-title">Quick Actions</div>
-            <div class="card-sub">Common tasks at your fingertips</div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;">
-              <button class="tb-btn" onclick="showPage('log-review',document.querySelector('[data-page=log-review]'));runLogReview()">⊛ Review Logs with AI</button>
-              <button class="tb-btn" onclick="showPage('health',document.querySelector('[data-page=health]'));runHealthCheck()">♡ Run Health Check</button>
-              <button class="tb-btn" onclick="showPage('logs',document.querySelector('[data-page=logs]'))">⋮ View Raw Logs</button>
-              <button class="tb-btn" onclick="showPage('entities',document.querySelector('[data-page=entities]'))">◈ Browse Entities</button>
+
+          <!-- STATUS SECTION -->
+          <div class="dash-section">
+            <div class="dash-section-header">
+              <div class="dash-section-title">System Status</div>
+              <div class="dash-section-meta">
+                <span class="dash-timestamp" id="status-timestamp"></span>
+                <button class="tb-btn" id="btn-status-refresh" onclick="runStatusRefresh()">↺ Refresh Status</button>
+              </div>
+            </div>
+
+            <div class="status-grid" id="status-grid">
+              <div class="status-card unchecked" id="sc-system">
+                <div class="sc-header"><span class="sc-label">System</span><span class="sc-dot" id="dot-system"></span></div>
+                <div class="sc-value unchecked" id="val-system">Not checked</div>
+                <div class="sc-sub" id="sub-system"></div>
+              </div>
+              <div class="status-card unchecked" id="sc-integrations">
+                <div class="sc-header"><span class="sc-label">Integrations</span><span class="sc-dot" id="dot-integrations"></span></div>
+                <div class="sc-value unchecked" id="val-integrations">Not checked</div>
+                <div class="sc-sub" id="sub-integrations"></div>
+                <div class="sc-issues" id="issues-integrations"></div>
+              </div>
+              <div class="status-card unchecked" id="sc-entities">
+                <div class="sc-header"><span class="sc-label">Entities</span><span class="sc-dot" id="dot-entities"></span></div>
+                <div class="sc-value unchecked" id="val-entities">Not checked</div>
+                <div class="sc-sub" id="sub-entities"></div>
+              </div>
+              <div class="status-card unchecked" id="sc-logs">
+                <div class="sc-header"><span class="sc-label">Logs</span><span class="sc-dot" id="dot-logs"></span></div>
+                <div class="sc-value unchecked" id="val-logs">Not checked</div>
+                <div class="sc-sub" id="sub-logs"></div>
+              </div>
             </div>
           </div>
-          <div class="card">
-            <div class="card-title">Config Files</div>
-            <div class="card-sub">Discovered from your configuration.yaml</div>
-            <div class="file-list" id="dash-file-list">
-              <div style="color:var(--t3);font-size:12px;">Loading...</div>
+
+          <div class="dash-divider"></div>
+
+          <!-- AI ANALYSIS SECTION -->
+          <div class="dash-section">
+            <div class="dash-section-header">
+              <div class="dash-section-title">AI Analysis</div>
+              <div class="dash-section-meta">
+                <span class="dash-timestamp" id="ai-timestamp"></span>
+                <button class="tb-btn primary" id="btn-ai-analysis" onclick="runAiAnalysis()">✦ Run AI Analysis</button>
+              </div>
+            </div>
+
+            <div class="ai-summary-panel" id="ai-summary-panel">
+              <div class="ai-summary-unchecked" id="ai-unchecked">
+                <div class="ai-summary-unchecked-icon">✦</div>
+                <div class="ai-summary-unchecked-text">Not checked</div>
+              </div>
+              <div class="ai-summary-content" id="ai-content" style="display:none"></div>
             </div>
           </div>
+
         </div>
       </div>
 
@@ -295,11 +377,9 @@ mark{background:#c8933a40;color:var(--amber);border-radius:2px}
           <div class="page-subtitle" id="files-subtitle">Discovered from your Home Assistant configuration</div>
         </div>
         <div class="page-body" style="display:grid;grid-template-columns:280px 1fr;gap:16px;height:100%;padding-bottom:0;overflow:hidden;">
-          <!-- File list -->
           <div style="overflow-y:auto;padding-bottom:16px;">
             <div class="file-list" id="files-list-panel"></div>
           </div>
-          <!-- YAML viewer -->
           <div style="display:flex;flex-direction:column;min-height:0;padding-bottom:16px;">
             <div id="yaml-viewer-wrap">
               <div class="yaml-toolbar">
@@ -338,7 +418,7 @@ mark{background:#c8933a40;color:var(--amber);border-radius:2px}
       <div class="page" id="page-log-review">
         <div class="page-header">
           <div class="page-title">Log Review</div>
-          <div class="page-subtitle">AI-powered analysis of your system logs</div>
+          <div class="page-subtitle">AI-powered deep analysis of your system logs</div>
           <div class="page-actions">
             <button class="tb-btn primary" id="btn-analyze-logs" onclick="runLogReview()">⊛ Analyze Logs</button>
           </div>
@@ -348,17 +428,17 @@ mark{background:#c8933a40;color:var(--amber);border-radius:2px}
         </div>
       </div>
 
-      <!-- HEALTH CHECK -->
-      <div class="page" id="page-health">
+      <!-- AUTOMATION REVIEW (coming soon) -->
+      <div class="page" id="page-auto-review">
         <div class="page-header">
-          <div class="page-title">Health Check</div>
-          <div class="page-subtitle">Full system analysis across automations, entities, logs, and hardware</div>
-          <div class="page-actions">
-            <button class="tb-btn primary" id="btn-health-check" onclick="runHealthCheck()">♡ Run Health Check</button>
-          </div>
+          <div class="page-title">Automation Review</div>
+          <div class="page-subtitle">AI quality check of your automations and scripts</div>
         </div>
-        <div class="page-body" id="health-body">
-          <div class="empty-state"><div class="empty-state-icon">♡</div><div class="empty-state-text">Click "Run Health Check" for a comprehensive analysis of your installation.</div></div>
+        <div class="coming-soon">
+          <div class="coming-soon-icon">⟳</div>
+          <div class="coming-soon-title">Coming in Phase 4</div>
+          <div class="coming-soon-text">Automation Review will perform a deep AI analysis of your automations, scripts, and helpers — checking for redundancies, conflicts, missing safety patterns, and design improvements.</div>
+          <div class="coming-soon-badge">PHASE 4</div>
         </div>
       </div>
 
@@ -367,45 +447,36 @@ mark{background:#c8933a40;color:var(--amber);border-radius:2px}
 </div>
 
 <script>
-// ── Injected by backend ───────────────────────────────────────────────────────
 const BASE_PATH_PLACEHOLDER = '';
 const VERSION_PLACEHOLDER = '';
 const BASE = BASE_PATH_PLACEHOLDER;
 const INTUITION_VERSION = VERSION_PLACEHOLDER;
 
-// ── State ─────────────────────────────────────────────────────────────────────
 const S = {
-  status: null,
-  entities: [],
-  filesInfo: {},
-  activeFile: null,
-  activeFileContent: '',
+  status: null, entities: [], filesInfo: {},
+  activeFile: null, activeFileContent: '',
   selectedDomain: null,
-  yamlSearchActive: false,
-  yamlSearchMatches: [],
-  yamlSearchIndex: 0,
+  yamlSearchActive: false, yamlSearchMatches: [],
 };
 
-// ── Init ──────────────────────────────────────────────────────────────────────
 async function init() {
-  if (INTUITION_VERSION) {
-    document.getElementById('brand-version').textContent = `v${INTUITION_VERSION}`;
-  }
+  if (INTUITION_VERSION) document.getElementById('brand-version').textContent = `v${INTUITION_VERSION}`;
   await loadStatus();
   await Promise.all([loadEntities(), loadFiles(), loadLogs()]);
 }
 
-// ── API ───────────────────────────────────────────────────────────────────────
 async function api(path, opts = {}) {
   const r = await fetch(`${BASE}/api${path}`, {
-    ...opts,
-    headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
+    ...opts, headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
   });
   if (!r.ok) throw new Error(`API ${r.status}: ${r.statusText}`);
   return r.json();
 }
 
-// ── Status ────────────────────────────────────────────────────────────────────
+function fmtTime(date) {
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
 async function loadStatus() {
   try {
     S.status = await api('/status');
@@ -413,10 +484,8 @@ async function loadStatus() {
     document.getElementById('status-text').textContent = `HA ${S.status.ha_version}`;
     document.getElementById('stat-version').textContent = S.status.ha_version;
     document.getElementById('stat-entities').textContent = S.status.entity_count;
-    document.getElementById('stat-files').textContent = `${S.status.files_count}`;
+    document.getElementById('stat-files').textContent = S.status.files_count;
     document.getElementById('stat-claude').textContent = S.status.claude_configured ? '✓ Ready' : '✗ Not set';
-    document.getElementById('dash-version').textContent = S.status.ha_version;
-    document.getElementById('dash-files').textContent = S.status.files_count;
   } catch(e) {
     document.getElementById('status-dot').className = 'status-dot error';
     document.getElementById('status-text').textContent = 'Error';
@@ -425,18 +494,162 @@ async function loadStatus() {
 
 async function refreshData() {
   const btn = document.getElementById('btn-refresh');
-  btn.disabled = true;
-  btn.textContent = 'Refreshing...';
+  btn.disabled = true; btn.textContent = 'Refreshing...';
   document.getElementById('status-dot').className = 'status-dot loading';
+  try { await api('/refresh', { method: 'POST' }); await init(); }
+  catch(e) { document.getElementById('status-dot').className = 'status-dot error'; }
+  finally { btn.disabled = false; btn.textContent = '↺ Refresh'; }
+}
+
+// ── Dashboard: Status Refresh ─────────────────────────────────────────────────
+async function runStatusRefresh() {
+  const btn = document.getElementById('btn-status-refresh');
+  btn.disabled = true; btn.textContent = 'Refreshing...';
+
+  // Set cards to loading state
+  ['system','integrations','entities','logs'].forEach(k => {
+    document.getElementById(`sc-${k}`).className = 'status-card unchecked';
+    document.getElementById(`dot-${k}`).className = 'sc-dot';
+    document.getElementById(`val-${k}`).className = 'sc-value unchecked';
+    document.getElementById(`val-${k}`).textContent = '...';
+  });
+
   try {
-    await api('/refresh', { method: 'POST' });
-    await init();
+    const data = await api('/health/status', { method: 'POST' });
+    renderStatusCards(data);
+    document.getElementById('status-timestamp').textContent = `Last checked: ${fmtTime(new Date())}`;
   } catch(e) {
-    document.getElementById('status-dot').className = 'status-dot error';
+    ['system','integrations','entities','logs'].forEach(k => {
+      document.getElementById(`val-${k}`).textContent = 'Error';
+    });
   } finally {
-    btn.disabled = false;
-    btn.textContent = '↺ Refresh';
+    btn.disabled = false; btn.textContent = '↺ Refresh Status';
   }
+}
+
+function renderStatusCards(data) {
+  // System card
+  const sys = data.system;
+  setCard('system', sys.status, sys.ha_version, `${sys.entity_count} entities`);
+
+  // Integrations card
+  const intg = data.integrations;
+  const intgVal = intg.total === 0 ? 'All OK' : `${intg.total} issue${intg.total !== 1 ? 's' : ''}`;
+  setCard('integrations', intg.status, intgVal, '');
+  const issuesEl = document.getElementById('issues-integrations');
+  issuesEl.innerHTML = '';
+  if (intg.issues?.length) {
+    intg.issues.slice(0, 3).forEach(i => {
+      const div = document.createElement('div');
+      div.className = `sc-issue ${i.state === 'setup_error' ? 'error' : ''}`;
+      div.textContent = i.title;
+      issuesEl.appendChild(div);
+    });
+  }
+
+  // Entities card
+  const ent = data.entities;
+  const coreCount = ent.unavailable_core?.length || 0;
+  const entSub = coreCount > 0 ? `${coreCount} core unavailable` : `${ent.unavailable_mobile} mobile offline (normal)`;
+  setCard('entities', ent.status, ent.total.toLocaleString(), entSub);
+
+  // Logs card
+  const logs = data.logs;
+  const logsVal = logs.errors === 0 ? 'Clean' : `${logs.errors} error${logs.errors !== 1 ? 's' : ''}`;
+  const logsSub = logs.warnings > 0 ? `${logs.warnings} warnings` : logs.errors === 0 ? 'No issues found' : '';
+  setCard('logs', logs.status, logsVal, logsSub);
+
+  // Log review recommendation
+  if (logs.recommend_log_review) {
+    const existing = document.getElementById('log-rec-banner');
+    if (!existing) {
+      const rec = document.createElement('div');
+      rec.id = 'log-rec-banner';
+      rec.className = 'ai-log-rec fade-in';
+      rec.textContent = `→ ${logs.errors} error${logs.errors !== 1 ? 's' : ''} found in logs — run Log Review for a detailed AI analysis`;
+      rec.onclick = () => { showPage('log-review', document.querySelector('[data-page=log-review]')); runLogReview(); };
+      document.getElementById('status-grid').after(rec);
+    }
+  } else {
+    const existing = document.getElementById('log-rec-banner');
+    if (existing) existing.remove();
+  }
+}
+
+function setCard(key, status, value, sub) {
+  const card = document.getElementById(`sc-${key}`);
+  const dot = document.getElementById(`dot-${key}`);
+  const val = document.getElementById(`val-${key}`);
+  const subEl = document.getElementById(`sub-${key}`);
+
+  card.className = `status-card ${status}`;
+  dot.className = `sc-dot ${status}`;
+  val.className = `sc-value ${status === 'ok' ? 'ok' : status === 'warn' ? 'warn' : 'error'}`;
+  val.textContent = value;
+  if (subEl) subEl.textContent = sub || '';
+}
+
+// ── Dashboard: AI Analysis ────────────────────────────────────────────────────
+async function runAiAnalysis() {
+  const btn = document.getElementById('btn-ai-analysis');
+  const panel = document.getElementById('ai-summary-panel');
+  btn.disabled = true;
+
+  document.getElementById('ai-unchecked').style.display = 'none';
+  document.getElementById('ai-content').style.display = 'none';
+  panel.innerHTML = `<div style="display:flex;align-items:center;gap:12px;padding:24px;color:var(--t2);font-size:13px;"><div class="thinking-dots"><span></span><span></span><span></span></div>Fetching latest data and running AI analysis...</div>`;
+
+  try {
+    // First run status refresh to get fresh data
+    await api('/health/status', { method: 'POST' });
+    // Then run AI
+    const data = await api('/health/ai', { method: 'POST' });
+    renderAiSummary(data);
+    document.getElementById('ai-timestamp').textContent = `Last analyzed: ${fmtTime(new Date())}`;
+  } catch(e) {
+    panel.innerHTML = `<div style="padding:20px;color:var(--red);font-size:12px;">Error: ${escHtml(e.message)}</div>`;
+  } finally { btn.disabled = false; }
+}
+
+function renderAiSummary(data) {
+  const panel = document.getElementById('ai-summary-panel');
+  if (data.error) {
+    panel.innerHTML = `<div style="padding:20px;"><div style="color:var(--red);font-weight:500;margin-bottom:6px;">Analysis Error</div><div style="font-size:12px;color:var(--t2);">${escHtml(data.error)}</div></div>`;
+    return;
+  }
+
+  let html = `<div class="ai-summary-content fade-in">
+    <div class="ai-overall ${data.overall}">${(data.overall || '').toUpperCase()}</div>
+    <div class="ai-summary-text">${escHtml(data.summary)}</div>`;
+
+  if (data.priority_items?.length) {
+    html += `<div class="ai-priority-items">`;
+    data.priority_items.forEach(item => {
+      html += `<div class="ai-priority-item ${item.severity}">
+        <div class="ai-pi-title">${escHtml(item.title)}</div>
+        <div class="ai-pi-detail">${escHtml(item.detail)}</div>
+        ${item.action ? `<div class="ai-pi-action">→ ${escHtml(item.action)}</div>` : ''}
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  if (data.positive_notes?.length) {
+    html += `<div class="ai-positives">`;
+    data.positive_notes.forEach(note => {
+      html += `<div class="ai-positive">${escHtml(note)}</div>`;
+    });
+    html += `</div>`;
+  }
+
+  if (data.log_recommendation) {
+    html += `<div class="ai-log-rec" onclick="showPage('log-review',document.querySelector('[data-page=log-review]'));runLogReview()">
+      → ${escHtml(data.log_recommendation)}
+    </div>`;
+  }
+
+  html += `</div>`;
+  panel.innerHTML = html;
 }
 
 // ── Entities ──────────────────────────────────────────────────────────────────
@@ -445,11 +658,9 @@ async function loadEntities() {
     const data = await api('/entities');
     S.entities = data.entities;
     const summary = await api('/entities/summary');
-    document.getElementById('dash-entities').textContent = summary.total;
-    document.getElementById('dash-unavailable').textContent = summary.unavailable;
+    document.getElementById('stat-entities').textContent = summary.total;
     document.getElementById('entities-subtitle').textContent =
       `${summary.total} entities across ${Object.keys(summary.domains).length} domains`;
-
     const filtersEl = document.getElementById('domain-filters');
     filtersEl.innerHTML = `<button class="domain-chip active" onclick="selectDomain(null,this)">All</button>`;
     Object.entries(summary.domains).slice(0,25).forEach(([d,c]) => {
@@ -460,7 +671,7 @@ async function loadEntities() {
       filtersEl.appendChild(btn);
     });
     renderEntities();
-  } catch(e) { console.error('Entities load error:', e); }
+  } catch(e) { console.error('Entities error:', e); }
 }
 
 function selectDomain(domain, el) {
@@ -497,180 +708,111 @@ async function loadFiles() {
   try {
     const data = await api('/files');
     S.filesInfo = data;
-
-    // Group files by type for display
     const fileEntries = Object.entries(data.files).sort((a,b) => {
       const order = ['root','include','include_dir','nested_include','package'];
       return order.indexOf(a[1].type) - order.indexOf(b[1].type);
     });
-
-    const dashList = document.getElementById('dash-file-list');
     const panelList = document.getElementById('files-list-panel');
-    dashList.innerHTML = '';
     panelList.innerHTML = '';
-
-    document.getElementById('files-subtitle').textContent =
-      `${data.total} files discovered from your configuration`;
-
+    document.getElementById('files-subtitle').textContent = `${data.total} files discovered from your configuration`;
     fileEntries.forEach(([name, info]) => {
-      const makeEl = () => {
-        const div = document.createElement('div');
-        div.className = 'file-item';
-        div.innerHTML = `
-          <span class="file-item-name">${name}</span>
-          <span class="file-item-key">${info.key}</span>
-          <span class="file-item-meta">${info.lines}L</span>
-          <span class="file-badge loaded">LOADED</span>
-        `;
-        div.onclick = () => viewFile(name);
-        return div;
-      };
-      dashList.appendChild(makeEl());
-      panelList.appendChild(makeEl());
+      const div = document.createElement('div');
+      div.className = 'file-item';
+      div.innerHTML = `<span class="file-item-name">${name}</span><span class="file-item-key">${info.key}</span><span class="file-item-meta">${info.lines}L</span><span class="file-badge loaded">LOADED</span>`;
+      div.onclick = () => viewFile(name);
+      panelList.appendChild(div);
     });
-
     document.getElementById('stat-files').textContent = data.total;
-    document.getElementById('dash-files').textContent = data.total;
-  } catch(e) { console.error('Files load error:', e); }
+  } catch(e) { console.error('Files error:', e); }
 }
 
 async function viewFile(filename) {
-  // Update active state in panel
   document.querySelectorAll('#files-list-panel .file-item').forEach(el => {
     el.classList.toggle('active-file', el.querySelector('.file-item-name').textContent === filename);
   });
-
   S.activeFile = filename;
   document.getElementById('yaml-filename').textContent = filename;
   document.getElementById('yaml-code').innerHTML = '<div style="padding:20px;color:var(--t3);font-size:12px;">Loading...</div>';
-
-  // Show toolbar buttons
   document.getElementById('btn-copy-yaml').style.display = '';
   document.getElementById('btn-dl-yaml').style.display = '';
   document.getElementById('btn-toggle-search').style.display = '';
-
   try {
     const data = await api(`/files/${encodeURIComponent(filename)}`);
     S.activeFileContent = data.content;
     S.yamlSearchMatches = [];
     renderYaml(data.content, '');
-
-    // Reset search
     document.getElementById('yaml-search').value = '';
     document.getElementById('yaml-search-info').style.display = 'none';
-
     showPage('files', document.querySelector('[data-page=files]'));
   } catch(e) {
-    document.getElementById('yaml-code').innerHTML = `<div style="padding:20px;color:var(--red);font-size:12px;">Error loading ${filename}: ${e.message}</div>`;
+    document.getElementById('yaml-code').innerHTML = `<div style="padding:20px;color:var(--red);font-size:12px;">Error: ${e.message}</div>`;
   }
 }
 
 function renderYaml(content, searchTerm) {
   const lines = content.split('\n');
   const term = searchTerm.toLowerCase();
-  let lineNumHtml = '';
-  let linesHtml = '';
-  let matchCount = 0;
+  let lineNumHtml = '', linesHtml = '', matchCount = 0;
   S.yamlSearchMatches = [];
-
   lines.forEach((line, i) => {
     const lineNum = i + 1;
     const isMatch = term && line.toLowerCase().includes(term);
-    if (isMatch) {
-      S.yamlSearchMatches.push(lineNum);
-      matchCount++;
-    }
+    if (isMatch) { S.yamlSearchMatches.push(lineNum); matchCount++; }
     const lineClass = isMatch ? 'yaml-line search-match' : 'yaml-line';
     const lineContent = isMatch && term
       ? escHtml(line).replace(new RegExp(escRegex(term), 'gi'), m => `<mark>${m}</mark>`)
       : escHtml(line);
-
-    lineNumHtml += `<span class="yaml-line-num${isMatch ? ' highlight' : ''}" id="ln-${lineNum}">${lineNum}</span>`;
+    lineNumHtml += `<span class="yaml-line-num${isMatch?' highlight':''}" id="ln-${lineNum}">${lineNum}</span>`;
     linesHtml += `<span class="${lineClass}" id="line-${lineNum}">${lineContent}</span>`;
   });
-
-  document.getElementById('yaml-code').innerHTML = `
-    <div class="yaml-line-numbers">${lineNumHtml}</div>
-    <div class="yaml-lines">${linesHtml}</div>
-  `;
-
+  document.getElementById('yaml-code').innerHTML = `<div class="yaml-line-numbers">${lineNumHtml}</div><div class="yaml-lines">${linesHtml}</div>`;
   if (term) {
     const info = document.getElementById('yaml-search-info');
     info.style.display = '';
-    info.textContent = matchCount > 0 ? `${matchCount} match${matchCount !== 1 ? 'es' : ''}` : 'No matches';
-    if (S.yamlSearchMatches.length > 0) {
-      scrollToLine(S.yamlSearchMatches[0]);
-    }
+    info.textContent = matchCount > 0 ? `${matchCount} match${matchCount!==1?'es':''}` : 'No matches';
+    if (S.yamlSearchMatches.length > 0) scrollToLine(S.yamlSearchMatches[0]);
   }
 }
 
-function searchYaml() {
-  const term = document.getElementById('yaml-search').value;
-  if (S.activeFileContent) {
-    renderYaml(S.activeFileContent, term);
-  }
-}
+function searchYaml() { if (S.activeFileContent) renderYaml(S.activeFileContent, document.getElementById('yaml-search').value); }
 
 function toggleYamlSearch() {
   const searchEl = document.getElementById('yaml-search');
-  const infoEl = document.getElementById('yaml-search-info');
   S.yamlSearchActive = !S.yamlSearchActive;
   searchEl.style.display = S.yamlSearchActive ? '' : 'none';
-  infoEl.style.display = 'none';
+  document.getElementById('yaml-search-info').style.display = 'none';
   document.getElementById('btn-toggle-search').textContent = S.yamlSearchActive ? 'Close' : 'Search';
-  if (S.yamlSearchActive) {
-    searchEl.focus();
-  } else {
-    searchEl.value = '';
-    renderYaml(S.activeFileContent, '');
-  }
+  if (S.yamlSearchActive) searchEl.focus();
+  else { searchEl.value = ''; renderYaml(S.activeFileContent, ''); }
 }
 
-function scrollToLine(lineNum) {
-  const el = document.getElementById(`line-${lineNum}`);
-  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-}
-
-function copyYaml() {
-  navigator.clipboard.writeText(S.activeFileContent).then(() => {
-    const btn = document.getElementById('btn-copy-yaml');
-    btn.textContent = 'Copied!';
-    setTimeout(() => btn.textContent = 'Copy', 1800);
-  });
-}
-
-function downloadYaml() {
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([S.activeFileContent], {type:'text/plain'}));
-  a.download = S.activeFile || 'file.yaml';
-  a.click();
-}
+function scrollToLine(n) { const el = document.getElementById(`line-${n}`); if (el) el.scrollIntoView({behavior:'smooth',block:'center'}); }
+function copyYaml() { navigator.clipboard.writeText(S.activeFileContent).then(() => { const b = document.getElementById('btn-copy-yaml'); b.textContent='Copied!'; setTimeout(()=>b.textContent='Copy',1800); }); }
+function downloadYaml() { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([S.activeFileContent],{type:'text/plain'})); a.download = S.activeFile||'file.yaml'; a.click(); }
 
 // ── Logs ──────────────────────────────────────────────────────────────────────
 async function loadLogs(refresh = false) {
   const container = document.getElementById('log-container');
-  container.innerHTML = '<span style="color:var(--t3);font-size:12px;">Loading logs...</span>';
+  container.innerHTML = '<span style="color:var(--t3);font-size:12px;">Loading...</span>';
   try {
-    const data = await api(`/logs${refresh ? '?refresh=true' : ''}`);
-    const lines = (data.content || '').split('\n').slice(-500);
+    const data = await api(`/logs${refresh?'?refresh=true':''}`);
+    const lines = (data.content||'').split('\n').slice(-500);
     container.innerHTML = lines.map(l => {
-      const cls = /error/i.test(l) ? 'error' : /warning/i.test(l) ? 'warning' : 'info';
+      const cls = /error/i.test(l)?'error':/warning/i.test(l)?'warning':'info';
       return `<span class="log-line ${cls}">${escHtml(l)}</span>`;
     }).join('');
     container.scrollTop = container.scrollHeight;
-  } catch(e) {
-    container.innerHTML = `<span style="color:var(--red);font-size:12px;">Failed to load logs: ${e.message}</span>`;
-  }
+  } catch(e) { container.innerHTML = `<span style="color:var(--red);font-size:12px;">Failed: ${e.message}</span>`; }
 }
 
-// ── AI: Log review ────────────────────────────────────────────────────────────
+// ── Log Review ────────────────────────────────────────────────────────────────
 async function runLogReview() {
   const body = document.getElementById('log-review-body');
   const btn = document.getElementById('btn-analyze-logs');
   btn.disabled = true;
   body.innerHTML = `<div style="display:flex;align-items:center;gap:12px;padding:20px;color:var(--t2);font-size:13px;"><div class="thinking-dots"><span></span><span></span><span></span></div>Fetching latest logs and analyzing...</div>`;
   try {
-    const data = await api(`/ai/analyze-logs?refresh=true`, { method: 'POST' });
+    const data = await api('/ai/analyze-logs?refresh=true', { method: 'POST' });
     renderLogReview(data);
   } catch(e) {
     body.innerHTML = `<div class="card" style="color:var(--red);">Error: ${escHtml(e.message)}</div>`;
@@ -691,70 +833,19 @@ function renderLogReview(data) {
       <span style="font-size:12px;color:var(--amber);">⚠ ${data.warning_count||0} warnings</span>
     </div>
   </div>`;
-
   if (data.errors?.length) {
     html += `<div class="ai-panel fade-in"><div class="ai-panel-header"><div class="ai-panel-title">Errors</div><span class="sev high">${data.errors.length} found</span></div><div class="ai-panel-body">`;
-    data.errors.forEach(e => {
-      html += `<div class="ai-item"><div class="ai-item-header"><span class="ai-item-title">${escHtml(e.title)}</span><span class="sev ${e.severity}">${e.severity}</span></div><div class="ai-item-detail">${escHtml(e.detail)}</div>${e.action?`<div class="ai-item-action">→ ${escHtml(e.action)}</div>`:''}</div>`;
-    });
+    data.errors.forEach(e => { html += `<div class="ai-item"><div class="ai-item-header"><span class="ai-item-title">${escHtml(e.title)}</span><span class="sev ${e.severity}">${e.severity}</span></div><div class="ai-item-detail">${escHtml(e.detail)}</div>${e.action?`<div class="ai-item-action">→ ${escHtml(e.action)}</div>`:''}</div>`; });
     html += `</div></div>`;
   }
-
   if (data.warnings?.length) {
     html += `<div class="ai-panel fade-in"><div class="ai-panel-header"><div class="ai-panel-title">Warnings</div><span class="sev medium">${data.warnings.length} found</span></div><div class="ai-panel-body">`;
-    data.warnings.forEach(w => {
-      html += `<div class="ai-item"><div class="ai-item-header"><span class="ai-item-title">${escHtml(w.title)}</span><span class="sev ${w.severity}">${w.severity}</span></div><div class="ai-item-detail">${escHtml(w.detail)}</div>${w.action?`<div class="ai-item-action">→ ${escHtml(w.action)}</div>`:''}</div>`;
-    });
+    data.warnings.forEach(w => { html += `<div class="ai-item"><div class="ai-item-header"><span class="ai-item-title">${escHtml(w.title)}</span><span class="sev ${w.severity}">${w.severity}</span></div><div class="ai-item-detail">${escHtml(w.detail)}</div>${w.action?`<div class="ai-item-action">→ ${escHtml(w.action)}</div>`:''}</div>`; });
     html += `</div></div>`;
   }
-
   if (data.recommendations?.length) {
     html += `<div class="ai-panel fade-in"><div class="ai-panel-header"><div class="ai-panel-title">Recommendations</div></div><div class="ai-panel-body"><ul class="quick-wins">${data.recommendations.map(r=>`<li>${escHtml(r)}</li>`).join('')}</ul></div></div>`;
   }
-  body.innerHTML = html;
-}
-
-// ── AI: Health check ──────────────────────────────────────────────────────────
-async function runHealthCheck() {
-  const body = document.getElementById('health-body');
-  const btn = document.getElementById('btn-health-check');
-  btn.disabled = true;
-  body.innerHTML = `<div style="display:flex;align-items:center;gap:12px;padding:20px;color:var(--t2);font-size:13px;"><div class="thinking-dots"><span></span><span></span><span></span></div>Fetching latest data and running health check...</div>`;
-  try {
-    const data = await api(`/ai/health-check?refresh=true`, { method: 'POST' });
-    renderHealthCheck(data);
-  } catch(e) {
-    body.innerHTML = `<div class="card" style="color:var(--red);">Error: ${escHtml(e.message)}</div>`;
-  } finally { btn.disabled = false; }
-}
-
-function renderHealthCheck(data) {
-  const body = document.getElementById('health-body');
-  if (data.error) {
-    body.innerHTML = `<div class="card"><div style="color:var(--red);margin-bottom:8px;font-weight:500;">Health Check Error</div><div style="font-size:12px;color:var(--t2);">${escHtml(data.error)}</div></div>`;
-    return;
-  }
-  const statusMap = {ok:'ok', warn:'medium', error:'high'};
-  let html = `<div class="card fade-in">
-    <div class="health-status ${data.overall_health}">${(data.overall_health||'').toUpperCase()}</div>
-    <p style="font-size:13px;color:var(--t2);line-height:1.7;">${escHtml(data.summary)}</p>
-  </div>`;
-
-  if (data.quick_wins?.length) {
-    html += `<div class="ai-panel fade-in"><div class="ai-panel-header"><div class="ai-panel-title">Quick Wins</div></div><div class="ai-panel-body"><ul class="quick-wins">${data.quick_wins.map(q=>`<li>${escHtml(q)}</li>`).join('')}</ul></div></div>`;
-  }
-
-  data.sections?.forEach(section => {
-    html += `<div class="ai-panel fade-in"><div class="ai-panel-header"><div class="ai-panel-title">${escHtml(section.title)}</div><span class="sev ${statusMap[section.status]||'info'}">${(section.status||'').toUpperCase()}</span></div><div class="ai-panel-body">`;
-    if (!section.items?.length) {
-      html += `<div style="color:var(--t3);font-size:12px;">No issues found in this section.</div>`;
-    } else {
-      section.items.forEach(item => {
-        html += `<div class="ai-item"><div class="ai-item-header"><span class="ai-item-title">${escHtml(item.title)}</span><span class="sev ${item.severity}">${item.severity}</span></div><div class="ai-item-detail">${escHtml(item.detail)}</div>${item.action?`<div class="ai-item-action">→ ${escHtml(item.action)}</div>`:''}</div>`;
-      });
-    }
-    html += `</div></div>`;
-  });
   body.innerHTML = html;
 }
 
@@ -768,14 +859,9 @@ function showPage(pageId, navEl) {
 }
 
 // ── Utils ─────────────────────────────────────────────────────────────────────
-function escHtml(s) {
-  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-function escRegex(s) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
+function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
 
-// ── Start ─────────────────────────────────────────────────────────────────────
 init();
 </script>
 </body>
