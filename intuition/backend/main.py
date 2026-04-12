@@ -278,10 +278,15 @@ async def health_ai():
         "unknown"
     )
 
+    # Fetch fresh update info
+    update_info = await ha_client.get_update_info()
+
     findings = {
         "ha_version": ha_version,
         "entity_count": len(state.entities),
         "integration_issues": state.integration_issues,
+        "pending_updates": update_info.get("updates", []),
+        "update_count": update_info.get("count", 0),
         "unavailable_core_entities": core_unavailable[:20],
         "unavailable_mobile_count": len(all_unavailable) - len(core_unavailable),
         "log_error_count": log_errors,

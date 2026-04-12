@@ -317,6 +317,12 @@ async def health_ai(findings: dict) -> dict:
 - setup_retry on printer integrations usually means the printer is powered off
 
 ## YOUR JOB
+You MUST address ALL of the following in your response:
+1. Any integration_issues — always mention these, explain what each means and likely cause
+2. Any pending_updates — always list these in the updates array with importance and notes
+3. Log errors — summarize what they mean, group related ones
+4. Overall system health assessment
+
 Analyze the findings and return JSON with this exact structure:
 {
   "overall": "excellent|good|fair|poor",
