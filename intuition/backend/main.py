@@ -43,6 +43,10 @@ class AppState:
         self.host_info = {}
         self.core_info = {}
         self.integration_issues = []
+        self.cached_ai_result = None
+        self.cached_ai_timestamp = None
+        self.cached_log_result = None
+        self.cached_log_timestamp = None
         self.loaded = False
 
 state = AppState()
@@ -242,6 +246,18 @@ async def health_status():
 
 
 # ── Health: AI analysis ────────────────────────────────────────────────────────
+@app.get("/api/health/ai/cached")
+async def get_cached_health_ai():
+    """Return cached AI health result if available."""
+    if state.cached_ai_result:
+        return {
+            "result": state.cached_ai_result,
+            "timestamp": state.cached_ai_timestamp,
+            "cached": True,
+        }
+    return {"cached": False}
+
+
 @app.post("/api/health/ai")
 async def health_ai():
     """
@@ -298,7 +314,12 @@ async def health_ai():
     }
 
     try:
-        return await claude_client.health_ai(findings)
+        result = await claude_client.health_ai(findings)
+        if "error" not in result:
+            from datetime import datetime, timezone
+            state.cached_ai_result = result
+            state.cached_ai_timestamp = datetime.now(timezone.utc).isoformat()
+        return result
     except Exception as e:
         return {"error": str(e)}
 
@@ -413,6 +434,18 @@ async def get_logs(refresh: bool = False):
 
 
 # ── AI: Log review ─────────────────────────────────────────────────────────────
+@app.get("/api/ai/analyze-logs/cached")
+async def get_cached_logs():
+    """Return cached log analysis result if available."""
+    if state.cached_log_result:
+        return {
+            "result": state.cached_log_result,
+            "timestamp": state.cached_log_timestamp,
+            "cached": True,
+        }
+    return {"cached": False}
+
+
 @app.post("/api/ai/analyze-logs")
 async def analyze_logs(refresh: bool = False):
     if refresh or not state.logs:
@@ -420,7 +453,12 @@ async def analyze_logs(refresh: bool = False):
     if not state.logs:
         return {"error": "No logs available."}
     try:
-        return await claude_client.analyze_logs(state.logs)
+        result = await claude_client.analyze_logs(state.logs)
+        if "error" not in result:
+            from datetime import datetime, timezone
+            state.cached_log_result = result
+            state.cached_log_timestamp = datetime.now(timezone.utc).isoformat()
+        return result
     except Exception as e:
         return {"error": str(e)}
 

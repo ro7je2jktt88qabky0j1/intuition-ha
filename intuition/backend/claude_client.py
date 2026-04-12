@@ -336,7 +336,7 @@ You MUST address ALL of the following:
 Return ONLY this JSON structure with no markdown, no preamble:
 {
   "overall": "excellent|good|fair|poor",
-  "summary": "2-3 sentences. Plain English current state of the system.",
+  "summary": "2-3 sentences. Focus on what matters — key issues, what is working well, and overall confidence in the system. Do NOT mention entity counts.",
   "priority_items": [
     {
       "title": "Short title",
