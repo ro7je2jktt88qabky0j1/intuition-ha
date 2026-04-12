@@ -82,7 +82,7 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:var(--san
 .dash-divider{height:1px;background:var(--b1);margin:24px 0}
 
 /* status cards */
-.status-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.status-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px}
 .status-card{background:var(--s2);border:1px solid var(--b1);border-radius:var(--rl);padding:16px;transition:border-color .2s}
 .status-card.ok{border-color:var(--green-border)}
 .status-card.warn{border-color:var(--amber-border)}
@@ -126,6 +126,14 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:var(--san
 .ai-positives{display:flex;flex-direction:column;gap:4px}
 .ai-positive{font-size:12px;color:var(--t2);display:flex;gap:6px}
 .ai-positive::before{content:"✓";color:var(--green);flex-shrink:0;font-weight:600}
+.metric-row{display:flex;justify-content:space-between;align-items:center;padding:3px 0}
+.metric-label{font-size:10px;color:var(--t3)}
+.metric-value{font-size:12px;font-weight:500;font-family:var(--mono)}
+.metric-value.ok{color:var(--green)}
+.metric-value.warn{color:var(--amber)}
+.metric-value.error{color:var(--red)}
+.metric-value.unknown{color:var(--t3)}
+.update-line{font-size:11px;color:var(--amber);margin-top:4px;display:flex;align-items:center;gap:4px}
 .ai-log-rec{margin-top:14px;padding:10px 14px;background:var(--amber-soft);border:1px solid var(--amber-border);border-radius:var(--r);font-size:12px;color:var(--amber);cursor:pointer}
 .ai-log-rec:hover{background:#c8933a25}
 
@@ -304,26 +312,36 @@ mark{background:#c8933a40;color:var(--amber);border-radius:2px}
             </div>
 
             <div class="status-grid" id="status-grid">
+              <!-- System -->
               <div class="status-card unchecked" id="sc-system">
-                <div class="sc-header"><span class="sc-label">System</span><span class="sc-dot" id="dot-system"></span></div>
+                <div class="sc-header"><span class="sc-label">System</span></div>
                 <div class="sc-value unchecked" id="val-system">Not checked</div>
                 <div class="sc-sub" id="sub-system"></div>
+                <div id="update-line" style="display:none" class="update-line"></div>
               </div>
+              <!-- Integrations -->
               <div class="status-card unchecked" id="sc-integrations">
-                <div class="sc-header"><span class="sc-label">Integrations</span><span class="sc-dot" id="dot-integrations"></span></div>
+                <div class="sc-header"><span class="sc-label">Integrations</span></div>
                 <div class="sc-value unchecked" id="val-integrations">Not checked</div>
-                <div class="sc-sub" id="sub-integrations"></div>
                 <div class="sc-issues" id="issues-integrations"></div>
               </div>
-              <div class="status-card unchecked" id="sc-entities">
-                <div class="sc-header"><span class="sc-label">Entities</span><span class="sc-dot" id="dot-entities"></span></div>
-                <div class="sc-value unchecked" id="val-entities">Not checked</div>
-                <div class="sc-sub" id="sub-entities"></div>
+              <!-- Backup -->
+              <div class="status-card unchecked" id="sc-backup">
+                <div class="sc-header"><span class="sc-label">Last Backup</span></div>
+                <div class="sc-value unchecked" id="val-backup">Not checked</div>
+                <div class="sc-sub" id="sub-backup"></div>
               </div>
+              <!-- Logs -->
               <div class="status-card unchecked" id="sc-logs">
-                <div class="sc-header"><span class="sc-label">Logs</span><span class="sc-dot" id="dot-logs"></span></div>
+                <div class="sc-header"><span class="sc-label">Logs</span></div>
                 <div class="sc-value unchecked" id="val-logs">Not checked</div>
                 <div class="sc-sub" id="sub-logs"></div>
+              </div>
+              <!-- Resources -->
+              <div class="status-card unchecked" id="sc-resources">
+                <div class="sc-header"><span class="sc-label">Resources</span></div>
+                <div id="resources-unchecked" style="font-size:12px;color:var(--t3);margin-top:4px;">Not checked</div>
+                <div id="resources-metrics" style="display:none;margin-top:6px;"></div>
               </div>
             </div>
           </div>
@@ -528,40 +546,99 @@ async function runStatusRefresh() {
 }
 
 function renderStatusCards(data) {
-  // System card
+  // ── System card ──────────────────────────────────────────
   const sys = data.system;
-  setCard('system', sys.status, sys.ha_version, `${sys.entity_count} entities`);
+  const haVersion = sys.ha_version || '—';
+  const updates = sys.updates || {};
+  const updateCount = updates.count || 0;
 
-  // Integrations card
+  setCardNeutral('system', haVersion, '');
+
+  const updateLineEl = document.getElementById('update-line');
+  if (updateCount > 0) {
+    document.getElementById('sc-system').className = 'status-card warn';
+    updateLineEl.style.display = 'flex';
+    if (updateCount === 1) {
+      const u = updates.updates[0];
+      updateLineEl.textContent = `↑ ${u.latest} available`;
+    } else {
+      updateLineEl.textContent = `↑ ${updateCount} updates available`;
+    }
+  } else {
+    document.getElementById('sc-system').className = 'status-card';
+    updateLineEl.style.display = 'none';
+  }
+
+  // ── Integrations card ────────────────────────────────────
   const intg = data.integrations;
   const intgVal = intg.total === 0 ? 'All OK' : `${intg.total} issue${intg.total !== 1 ? 's' : ''}`;
-  setCard('integrations', intg.status, intgVal, '');
+  document.getElementById('sc-integrations').className = `status-card${intg.total > 0 ? ' warn' : ''}`;
+  const intgValEl = document.getElementById('val-integrations');
+  intgValEl.className = `sc-value${intg.total > 0 ? ' warn' : ''}`;
+  intgValEl.textContent = intgVal;
   const issuesEl = document.getElementById('issues-integrations');
   issuesEl.innerHTML = '';
   if (intg.issues?.length) {
     intg.issues.slice(0, 3).forEach(i => {
       const div = document.createElement('div');
-      div.className = `sc-issue ${i.state === 'setup_error' ? 'error' : ''}`;
+      div.className = 'sc-issue';
       div.textContent = i.title;
       issuesEl.appendChild(div);
     });
   }
 
-  // Entities card
-  const ent = data.entities;
-  const coreCount = ent.unavailable_core?.length || 0;
-  const entSub = coreCount > 0 ? `${coreCount} core unavailable` : `${ent.unavailable_mobile} mobile offline (normal)`;
-  setCard('entities', ent.status, ent.total.toLocaleString(), entSub);
+  // ── Backup card ──────────────────────────────────────────
+  const bk = data.backup;
+  const bkCard = document.getElementById('sc-backup');
+  const bkVal = document.getElementById('val-backup');
+  const bkSub = document.getElementById('sub-backup');
 
-  // Logs card
+  if (!bk.has_backup) {
+    bkCard.className = 'status-card error';
+    bkVal.className = 'sc-value error';
+    bkVal.textContent = 'No backups found';
+    bkSub.textContent = '';
+  } else {
+    const ageH = bk.age_hours;
+    let bkStatus, bkColor;
+    if (ageH <= 24) { bkStatus = 'ok'; bkColor = 'ok'; bkCard.className = 'status-card'; }
+    else if (ageH <= 72) { bkStatus = 'warn'; bkColor = 'warn'; bkCard.className = 'status-card warn'; }
+    else { bkStatus = 'error'; bkColor = 'error'; bkCard.className = 'status-card error'; }
+
+    // Format time display
+    let timeDisplay;
+    if (ageH < 1) timeDisplay = 'Just now';
+    else if (ageH < 24) timeDisplay = `${Math.floor(ageH)}h ago`;
+    else if (ageH < 48) timeDisplay = 'Yesterday';
+    else timeDisplay = `${Math.floor(ageH/24)} days ago`;
+
+    bkVal.className = `sc-value ${bkColor}`;
+    bkVal.textContent = timeDisplay;
+    bkSub.textContent = bk.last_backup_name || '';
+  }
+
+  // ── Logs card ────────────────────────────────────────────
   const logs = data.logs;
-  const logsVal = logs.errors === 0 ? 'Clean' : `${logs.errors} error${logs.errors !== 1 ? 's' : ''}`;
-  const logsSub = logs.warnings > 0 ? `${logs.warnings} warnings` : logs.errors === 0 ? 'No issues found' : '';
-  setCard('logs', logs.status, logsVal, logsSub);
+  document.getElementById('sc-logs').className = 'status-card';
+  const logsValEl = document.getElementById('val-logs');
+  logsValEl.className = 'sc-value';
+  if (logs.errors === 0 && logs.warnings === 0) {
+    logsValEl.textContent = 'Clean';
+  } else if (logs.errors === 0) {
+    logsValEl.textContent = `${logs.warnings} warning${logs.warnings !== 1 ? 's' : ''}`;
+  } else {
+    logsValEl.textContent = `${logs.errors} error${logs.errors !== 1 ? 's' : ''}`;
+  }
+  const logsSub = document.getElementById('sub-logs');
+  if (logsSub) {
+    logsSub.textContent = logs.errors > 0 && logs.warnings > 0
+      ? `${logs.warnings} warnings`
+      : logs.errors > 0 ? 'Run Log Review for details' : '';
+  }
 
-  // Log review recommendation
+  // Log review recommendation banner
   if (logs.recommend_log_review) {
-    const existing = document.getElementById('log-rec-banner');
+    let existing = document.getElementById('log-rec-banner');
     if (!existing) {
       const rec = document.createElement('div');
       rec.id = 'log-rec-banner';
@@ -574,18 +651,29 @@ function renderStatusCards(data) {
     const existing = document.getElementById('log-rec-banner');
     if (existing) existing.remove();
   }
+
+  // ── Resources card ───────────────────────────────────────
+  const res = data.resources;
+  const resCard = document.getElementById('sc-resources');
+  resCard.className = `status-card${res.status === 'error' ? ' error' : res.status === 'warn' ? ' warn' : ''}`;
+  document.getElementById('resources-unchecked').style.display = 'none';
+  const metricsEl = document.getElementById('resources-metrics');
+  metricsEl.style.display = 'block';
+
+  const metrics = [
+    { label: 'CPU', value: res.cpu_percent != null ? `${res.cpu_percent}%` : '—', status: res.cpu_status },
+    { label: 'Memory', value: res.memory_percent != null ? `${res.memory_percent}%` : '—', status: res.memory_status },
+    { label: 'Disk', value: res.disk_percent != null ? `${res.disk_percent}%` : '—', status: res.disk_status },
+  ];
+  metricsEl.innerHTML = metrics.map(m =>
+    `<div class="metric-row"><span class="metric-label">${m.label}</span><span class="metric-value ${m.status}">${m.value}</span></div>`
+  ).join('');
 }
 
-function setCard(key, status, value, sub) {
-  const card = document.getElementById(`sc-${key}`);
-  const dot = document.getElementById(`dot-${key}`);
+function setCardNeutral(key, value, sub) {
   const val = document.getElementById(`val-${key}`);
   const subEl = document.getElementById(`sub-${key}`);
-
-  card.className = `status-card ${status}`;
-  dot.className = `sc-dot ${status}`;
-  val.className = `sc-value ${status === 'ok' ? 'ok' : status === 'warn' ? 'warn' : 'error'}`;
-  val.textContent = value;
+  if (val) { val.className = 'sc-value'; val.textContent = value; }
   if (subEl) subEl.textContent = sub || '';
 }
 
@@ -629,6 +717,24 @@ function renderAiSummary(data) {
         <div class="ai-pi-title">${escHtml(item.title)}</div>
         <div class="ai-pi-detail">${escHtml(item.detail)}</div>
         ${item.action ? `<div class="ai-pi-action">→ ${escHtml(item.action)}</div>` : ''}
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  if (data.updates?.length) {
+    html += `<div style="margin-bottom:16px;">
+      <div style="font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">Pending Updates</div>`;
+    data.updates.forEach(u => {
+      const impColor = u.importance === 'security' ? 'var(--red)' : u.importance === 'recommended' ? 'var(--amber)' : 'var(--t2)';
+      const impLabel = u.importance === 'security' ? '🔒 Security' : u.importance === 'recommended' ? '★ Recommended' : 'Optional';
+      html += `<div style="padding:10px 12px;background:var(--s3);border-radius:var(--r);margin-bottom:6px;border-left:3px solid ${impColor}">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <span style="font-size:12px;font-weight:500;color:var(--t1);">${escHtml(u.name)}</span>
+          <span style="font-size:10px;color:${impColor};">${impLabel}</span>
+        </div>
+        <div style="font-size:11px;color:var(--t3);font-family:var(--mono);">${escHtml(u.current)} → ${escHtml(u.latest)}</div>
+        ${u.notes ? `<div style="font-size:11px;color:var(--t2);margin-top:4px;">${escHtml(u.notes)}</div>` : ''}
       </div>`;
     });
     html += `</div>`;
