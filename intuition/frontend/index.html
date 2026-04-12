@@ -262,6 +262,10 @@ mark{background:#c8933a40;color:var(--amber);border-radius:2px}
         <div class="status-dot loading" id="status-dot"></div>
         <span id="status-text">Connecting...</span>
       </div>
+      <div class="status-badge" id="ai-status-badge">
+        <div class="status-dot" id="ai-status-dot"></div>
+        <span id="ai-status-text">AI: Checking...</span>
+      </div>
     </div>
   </div>
 
@@ -367,10 +371,13 @@ mark{background:#c8933a40;color:var(--amber);border-radius:2px}
 
       <!-- ENTITIES -->
       <div class="page" id="page-entities">
-        <div class="page-header">
-          <div class="page-title">Entities</div>
-          <div class="page-subtitle" id="entities-subtitle">Loading...</div>
-          <div class="page-actions">
+        <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;">
+          <div>
+            <div class="page-title">Entities</div>
+            <div class="page-subtitle" id="entities-subtitle">Loading...</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;margin-top:4px;flex-shrink:0;">
+            <span class="dash-timestamp" id="entities-timestamp"></span>
             <button class="tb-btn primary" onclick="loadEntities(true)">↺ Refresh Entities</button>
           </div>
         </div>
@@ -388,10 +395,13 @@ mark{background:#c8933a40;color:var(--amber);border-radius:2px}
 
       <!-- CONFIG FILES -->
       <div class="page" id="page-files">
-        <div class="page-header">
-          <div class="page-title">Config Files</div>
-          <div class="page-subtitle" id="files-subtitle">Discovered from your Home Assistant configuration</div>
-          <div class="page-actions">
+        <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;">
+          <div>
+            <div class="page-title">Config Files</div>
+            <div class="page-subtitle" id="files-subtitle">Discovered from your Home Assistant configuration</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;margin-top:4px;flex-shrink:0;">
+            <span class="dash-timestamp" id="files-timestamp"></span>
             <button class="tb-btn primary" onclick="loadFiles(true)">↺ Refresh Files</button>
           </div>
         </div>
@@ -421,10 +431,13 @@ mark{background:#c8933a40;color:var(--amber);border-radius:2px}
 
       <!-- LOGS -->
       <div class="page" id="page-logs">
-        <div class="page-header">
-          <div class="page-title">System Logs</div>
-          <div class="page-subtitle">Raw Home Assistant error log</div>
-          <div class="page-actions">
+        <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;">
+          <div>
+            <div class="page-title">System Logs</div>
+            <div class="page-subtitle">Raw Home Assistant error log</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;margin-top:4px;flex-shrink:0;">
+            <span class="dash-timestamp" id="logs-timestamp"></span>
             <button class="tb-btn primary" onclick="loadLogs(true)">↺ Refresh Logs</button>
           </div>
         </div>
@@ -435,10 +448,12 @@ mark{background:#c8933a40;color:var(--amber);border-radius:2px}
 
       <!-- LOG REVIEW -->
       <div class="page" id="page-log-review">
-        <div class="page-header">
-          <div class="page-title">Log Review</div>
-          <div class="page-subtitle">AI-powered deep analysis of your system logs</div>
-          <div class="page-actions">
+        <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;">
+          <div>
+            <div class="page-title">Log Review</div>
+            <div class="page-subtitle">AI-powered deep analysis of your system logs</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;margin-top:4px;flex-shrink:0;">
             <span class="dash-timestamp" id="log-review-timestamp"></span>
             <button class="tb-btn primary" id="btn-analyze-logs" onclick="runLogReview()">⊛ Analyze Logs</button>
           </div>
@@ -527,7 +542,7 @@ async function loadStatus() {
   try {
     S.status = await api('/status');
     document.getElementById('status-dot').className = 'status-dot ok';
-    document.getElementById('status-text').textContent = 'Connected';
+    document.getElementById('status-text').textContent = 'HA Connected';
   } catch(e) {
     document.getElementById('status-dot').className = 'status-dot error';
     document.getElementById('status-text').textContent = 'Disconnected';
@@ -724,8 +739,14 @@ async function runAiAnalysis() {
     S.aiTimestamp = new Date();
     renderAiSummary(data);
     document.getElementById('ai-timestamp').textContent = `Last analyzed: ${fmtTime(S.aiTimestamp)}`;
+    if (!data.error) {
+      document.getElementById('ai-status-dot').className = 'status-dot ok';
+      document.getElementById('ai-status-text').textContent = 'AI: Ready';
+    }
   } catch(e) {
     panel.innerHTML = `<div style="padding:20px;color:var(--red);font-size:12px;">Error: ${escHtml(e.message)}</div>`;
+    document.getElementById('ai-status-dot').className = 'status-dot error';
+    document.getElementById('ai-status-text').textContent = 'AI: Unavailable';
   } finally { btn.disabled = false; }
 }
 
@@ -832,6 +853,8 @@ async function loadEntities(refresh = false) {
     S.entities = data.entities;
     const summary = await api('/entities/summary');
     subtitle.textContent = `${summary.total} entities across ${Object.keys(summary.domains).length} domains`;
+    const entTs = document.getElementById('entities-timestamp');
+    if (entTs) entTs.textContent = `Last updated: ${fmtTime(new Date())}`;
     const filtersEl = document.getElementById('domain-filters');
     filtersEl.innerHTML = `<button class="domain-chip active" onclick="selectDomain(null,this)">All</button>`;
     Object.entries(summary.domains).slice(0,25).forEach(([d,c]) => {
@@ -895,6 +918,8 @@ async function loadFiles(refresh = false) {
     const panelList = document.getElementById('files-list-panel');
     panelList.innerHTML = '';
     document.getElementById('files-subtitle').textContent = `${data.total} files discovered from your configuration`;
+    const filesTs = document.getElementById('files-timestamp');
+    if (filesTs) filesTs.textContent = `Last updated: ${fmtTime(new Date())}`;
     fileEntries.forEach(([name, info]) => {
       const div = document.createElement('div');
       div.className = 'file-item';
@@ -982,6 +1007,8 @@ async function loadLogs(refresh = false) {
       return `<span class="log-line ${cls}">${escHtml(l)}</span>`;
     }).join('');
     container.scrollTop = container.scrollHeight;
+    const logsTs = document.getElementById('logs-timestamp');
+    if (logsTs) logsTs.textContent = `Last updated: ${fmtTime(new Date())}`;
   } catch(e) { container.innerHTML = `<span style="color:var(--red);font-size:12px;">Failed: ${e.message}</span>`; }
 }
 
