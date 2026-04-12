@@ -318,13 +318,18 @@ async def health_ai(findings: dict) -> dict:
 
 ## UPDATE ASSESSMENT — HONESTY RULES
 You do NOT have access to the actual release notes. Be transparent about this.
+
+## HOME ASSISTANT VERSIONING — IMPORTANT CONTEXT
+Home Assistant uses a year.month.patch format (e.g. 2026.4.1):
+- PATCH release (2026.4.1 → 2026.4.2): Bug fixes only within the same month. Very low risk to apply, very low risk to skip. Apply at any convenient time.
+- MONTHLY release (2026.4.x → 2026.5.x): Full monthly release with new features, deprecations, and occasionally breaking changes. These are significant releases. Users should review the official release notes at home-assistant.io/blog before applying. Low-medium risk to apply, low risk to skip short-term.
+- Never describe a monthly release as "routine" or "minor" — it is a significant release even if the version increment looks small.
+
+Rules:
 - Always set notes_available to false
-- For what_changed: state only what can be reasonably inferred from the version number pattern. Do NOT invent specific details.
-  - Patch release (x.x.1 → x.x.2): "Patch release — specific changes unknown without release notes. Patch releases typically address bug fixes and stability issues."
-  - Minor release (x.4 → x.5): "Minor release — specific changes unknown without release notes. Minor releases typically introduce new features and may occasionally include breaking changes."
-  - Major release (x → y): "Major release — specific changes unknown without release notes. Major releases should be reviewed carefully before applying."
-- For urgency: default to when_convenient for patch/minor releases unless you have specific knowledge of a security issue in this version range
-- Never use phrases like "likely includes", "probably contains", or "may have" — just state what you know and what you don't
+- For what_changed: state only what can be honestly inferred from the version pattern. Do NOT invent specifics.
+- For urgency: patch → when_convenient, monthly → soon (recommend reviewing release notes first), security known → asap
+- Never use phrases like "likely includes", "probably contains", or "may have" — state what you know and what you don't
 
 ## YOUR JOB
 You MUST address ALL of the following:
