@@ -170,21 +170,21 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:var(--san
 .domain-chip.active{background:var(--accent-soft);border-color:var(--accent-mid);color:var(--accent);font-weight:500}
 
 /* yaml viewer */
-#yaml-viewer-wrap{display:flex;flex-direction:column;flex:1;min-height:0;border:1px solid var(--b1);border-radius:var(--rl);overflow:hidden;background:var(--bg)}
-.yaml-toolbar{display:flex;gap:6px;padding:8px 12px;border-bottom:1px solid var(--b1);flex-shrink:0;background:var(--s1);align-items:center}
-.yaml-filename{font-size:11px;color:var(--accent);font-family:var(--mono);font-weight:500;margin-right:auto}
+#yaml-viewer-wrap{display:flex;flex-direction:column;flex:1;min-height:0;border:1px solid var(--b1);border-radius:var(--rl);overflow:hidden;background:var(--bg);min-width:0}
+.yaml-toolbar{display:flex;gap:6px;padding:8px 12px;border-bottom:1px solid var(--b1);flex-shrink:0;background:var(--s1);align-items:center;overflow:hidden}
+.yaml-filename{font-size:11px;color:var(--accent);font-family:var(--mono);font-weight:500;margin-right:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .yaml-btn{font-size:10px;padding:3px 10px;border-radius:3px;cursor:pointer;border:1px solid var(--b2);background:transparent;color:var(--t2);font-family:var(--sans);transition:all .15s}
 .yaml-btn:hover{border-color:var(--accent);color:var(--accent)}
 .yaml-search{background:var(--s2);border:1px solid var(--b1);border-radius:4px;padding:4px 10px;color:var(--t1);font-family:var(--mono);font-size:11px;outline:none;width:200px;transition:border-color .15s}
 .yaml-search:focus{border-color:var(--accent)}
 .yaml-search::placeholder{color:var(--t3)}
 .yaml-search-info{font-size:10px;color:var(--t3);font-family:var(--mono);white-space:nowrap}
-#yaml-scroll{flex:1;overflow:auto;min-width:0}
-.yaml-code{display:flex;font-family:var(--mono);font-size:11px;line-height:1.7}
+#yaml-scroll{flex:1;overflow:auto}
+.yaml-code{display:flex;font-family:var(--mono);font-size:11px;line-height:1.7;min-width:max-content;width:100%}
 .yaml-line-numbers{padding:12px 0;text-align:right;user-select:none;flex-shrink:0;background:var(--s1);border-right:1px solid var(--b1);min-width:48px}
 .yaml-line-num{padding:0 12px;color:var(--t3);font-size:10px;display:block;line-height:1.7}
 .yaml-line-num.highlight{color:var(--accent);background:var(--accent-soft)}
-.yaml-lines{flex:1;padding:12px 16px;white-space:pre;color:var(--t2);overflow-x:auto;min-width:0}
+.yaml-lines{flex:1;padding:12px 16px;white-space:pre;color:var(--t2)}
 .yaml-line{display:block;line-height:1.7}
 .yaml-line.search-match{background:#c8933a20;color:var(--amber)}
 mark{background:#c8933a40;color:var(--amber);border-radius:2px}
@@ -399,7 +399,7 @@ mark{background:#c8933a40;color:var(--amber);border-radius:2px}
           <div style="overflow-y:auto;padding-bottom:16px;">
             <div class="file-list" id="files-list-panel"></div>
           </div>
-          <div style="display:flex;flex-direction:column;min-height:0;padding-bottom:16px;">
+          <div style="display:flex;flex-direction:column;min-height:0;padding-bottom:16px;min-width:0;">
             <div id="yaml-viewer-wrap">
               <div class="yaml-toolbar">
                 <span class="yaml-filename" id="yaml-filename">Select a file</span>
