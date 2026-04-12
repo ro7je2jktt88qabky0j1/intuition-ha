@@ -179,12 +179,12 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:var(--san
 .yaml-search:focus{border-color:var(--accent)}
 .yaml-search::placeholder{color:var(--t3)}
 .yaml-search-info{font-size:10px;color:var(--t3);font-family:var(--mono);white-space:nowrap}
-#yaml-scroll{flex:1;overflow:auto}
+#yaml-scroll{flex:1;overflow:auto;min-width:0}
 .yaml-code{display:flex;font-family:var(--mono);font-size:11px;line-height:1.7}
 .yaml-line-numbers{padding:12px 0;text-align:right;user-select:none;flex-shrink:0;background:var(--s1);border-right:1px solid var(--b1);min-width:48px}
 .yaml-line-num{padding:0 12px;color:var(--t3);font-size:10px;display:block;line-height:1.7}
 .yaml-line-num.highlight{color:var(--accent);background:var(--accent-soft)}
-.yaml-lines{flex:1;padding:12px 16px;white-space:pre;color:var(--t2);overflow-x:auto}
+.yaml-lines{flex:1;padding:12px 16px;white-space:pre;color:var(--t2);overflow-x:auto;min-width:0}
 .yaml-line{display:block;line-height:1.7}
 .yaml-line.search-match{background:#c8933a20;color:var(--amber)}
 mark{background:#c8933a40;color:var(--amber);border-radius:2px}
@@ -270,17 +270,18 @@ mark{background:#c8933a40;color:var(--amber);border-radius:2px}
       <div class="nav-section">
         <div class="nav-label">Overview</div>
         <div class="nav-item active" data-page="dashboard" onclick="showPage('dashboard',this)"><span class="nav-icon">⊡</span>Dashboard</div>
+        <div class="nav-item disabled"><span class="nav-icon">⚡</span>Automation Status<span class="nav-soon">SOON</span></div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Intelligence</div>
+        <div class="nav-item" data-page="log-review" onclick="showPage('log-review',this)"><span class="nav-icon">⊛</span>Log Review</div>
+        <div class="nav-item disabled" data-page="auto-review"><span class="nav-icon">⟳</span>Automation Review<span class="nav-soon">SOON</span></div>
       </div>
       <div class="nav-section">
         <div class="nav-label">Data</div>
         <div class="nav-item" data-page="entities" onclick="showPage('entities',this)"><span class="nav-icon">◈</span>Entities</div>
         <div class="nav-item" data-page="files" onclick="showPage('files',this)"><span class="nav-icon">≡</span>Config Files</div>
         <div class="nav-item" data-page="logs" onclick="showPage('logs',this)"><span class="nav-icon">⋮</span>System Logs</div>
-      </div>
-      <div class="nav-section">
-        <div class="nav-label">Intelligence</div>
-        <div class="nav-item" data-page="log-review" onclick="showPage('log-review',this)"><span class="nav-icon">⊛</span>Log Review</div>
-        <div class="nav-item disabled" data-page="auto-review"><span class="nav-icon">⟳</span>Automation Review<span class="nav-soon">SOON</span></div>
       </div>
 
     </div>
