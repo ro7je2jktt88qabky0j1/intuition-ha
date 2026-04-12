@@ -621,12 +621,19 @@ function renderStatusCards(data) {
   const issuesEl = document.getElementById('issues-integrations');
   issuesEl.innerHTML = '';
   if (intg.issues?.length) {
-    intg.issues.slice(0, 3).forEach(i => {
+    if (intg.total === 1) {
+      // Show the single issue name
       const div = document.createElement('div');
       div.className = 'sc-issue';
-      div.textContent = i.title;
+      div.textContent = intg.issues[0].title;
       issuesEl.appendChild(div);
-    });
+    } else {
+      // Multiple issues — just note to check AI Analysis for detail
+      const div = document.createElement('div');
+      div.className = 'sc-issue';
+      div.textContent = 'Run AI Analysis for details';
+      issuesEl.appendChild(div);
+    }
   }
 
   // ── Backup card ──────────────────────────────────────────
@@ -708,7 +715,7 @@ function renderStatusCards(data) {
   const metrics = [
     { label: 'CPU', value: res.cpu_percent != null ? `${res.cpu_percent}%` : '—', status: res.cpu_status },
     { label: 'Memory', value: res.memory_percent != null ? `${res.memory_percent}%` : '—', status: res.memory_status },
-    { label: 'Disk', value: res.disk_percent != null ? `${res.disk_percent}%` : '—', status: res.disk_status },
+    { label: 'Storage', value: res.disk_percent != null ? `${res.disk_percent}%` : '—', status: res.disk_status },
   ];
   metricsEl.innerHTML = metrics.map(m =>
     `<div class="metric-row"><span class="metric-label">${m.label}</span><span class="metric-value ${m.status}">${m.value}</span></div>`
