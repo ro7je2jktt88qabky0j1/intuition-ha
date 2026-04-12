@@ -329,6 +329,15 @@ Analyze the findings and return JSON with this exact structure:
       "severity": "high|medium|low"
     }
   ],
+  "updates": [
+    {
+      "name": "Component name e.g. Home Assistant Core",
+      "current": "current version",
+      "latest": "latest version",
+      "importance": "security|recommended|optional",
+      "notes": "One sentence: what this update brings — security fixes, important bug fixes, or notable features. Skip minor/routine updates."
+    }
+  ],
   "positive_notes": [
     "Things that are working well worth noting"
   ],
@@ -337,6 +346,7 @@ Analyze the findings and return JSON with this exact structure:
 
 Rules:
 - priority_items should only contain real actionable issues — not normal background noise
+- For updates: mark as security if it contains security fixes, recommended if important bug fixes, optional if routine
 - Keep summary conversational, not robotic
 - If everything is fine, say so clearly and keep it short
 - Return ONLY the JSON object"""

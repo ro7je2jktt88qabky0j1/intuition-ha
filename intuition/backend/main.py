@@ -145,9 +145,17 @@ async def refresh_data():
 async def health_status():
     """
     Fast local health scan — no AI, no cost.
-    Refreshes all data then returns structured findings.
+    Refreshes all data then returns structured findings for all 5 cards.
     """
     await load_all_data()
+
+    # Fetch new data sources in parallel
+    import asyncio
+    update_info, backup_info, resources = await asyncio.gather(
+        ha_client.get_update_info(),
+        ha_client.get_backup_info(),
+        ha_client.get_system_resources(),
+    )
 
     # Scan logs for error/warning counts
     log_errors = 0
@@ -164,28 +172,6 @@ async def health_status():
             elif "warning" in ll:
                 log_warnings += 1
 
-    # Entity health
-    all_unavailable = [
-        e["entity_id"] for e in state.entities
-        if e["state"] in ["unavailable", "unknown"]
-    ]
-    mobile_unavailable = [
-        e for e in all_unavailable
-        if any(x in e for x in ["iphone", "ipad", "android", "_phone", "mobile_app"])
-    ]
-    core_unavailable = [e for e in all_unavailable if e not in mobile_unavailable]
-
-    # Overall system status
-    has_errors = bool(state.integration_issues) or log_critical or len(core_unavailable) > 5
-    has_warnings = log_errors > 0 or len(core_unavailable) > 0
-
-    if has_errors:
-        system_status = "error"
-    elif has_warnings:
-        system_status = "warn"
-    else:
-        system_status = "ok"
-
     # HA version
     ha_version = (
         state.ha_info.get("version") or
@@ -193,33 +179,64 @@ async def health_status():
         "unknown"
     )
 
+    # Backup age status
+    age_hours = backup_info.get("age_hours")
+    if age_hours is None:
+        backup_status = "unknown"
+    elif age_hours <= 24:
+        backup_status = "ok"
+    elif age_hours <= 72:
+        backup_status = "warn"
+    else:
+        backup_status = "error"
+
+    # Resources status — worst of three
+    def resource_level(pct):
+        if pct is None: return "unknown"
+        if pct >= 85: return "error"
+        if pct >= 70: return "warn"
+        return "ok"
+
+    cpu_status = resource_level(resources.get("cpu_percent"))
+    mem_status = resource_level(resources.get("memory_percent"))
+    disk_status = resource_level(resources.get("disk_percent"))
+    level_order = ["error", "warn", "ok", "unknown"]
+    resources_status = min([cpu_status, mem_status, disk_status], key=lambda x: level_order.index(x) if x in level_order else 3)
+
     return {
         "system": {
-            "status": system_status,
             "ha_version": ha_version,
-            "entity_count": len(state.entities),
+            "updates": update_info,
         },
         "integrations": {
-            "status": "error" if state.integration_issues else "ok",
+            "status": "warn" if state.integration_issues else "ok",
             "total": len(state.integration_issues),
             "issues": state.integration_issues,
         },
-        "entities": {
-            "status": "warn" if core_unavailable else "ok",
-            "total": len(state.entities),
-            "unavailable_total": len(all_unavailable),
-            "unavailable_core": core_unavailable[:10],
-            "unavailable_mobile": len(mobile_unavailable),
+        "backup": {
+            "status": backup_status,
+            "has_backup": backup_info.get("has_backup", False),
+            "last_backup": backup_info.get("last_backup"),
+            "last_backup_name": backup_info.get("last_backup_name", ""),
+            "age_hours": age_hours,
+            "total_backups": backup_info.get("total_backups", 0),
         },
         "logs": {
-            "status": "error" if log_critical or log_errors > 10 else "warn" if log_errors > 0 else "ok",
             "errors": log_errors,
             "warnings": log_warnings,
             "critical": log_critical,
             "recommend_log_review": log_errors > 0,
         },
-        "config": {
-            "files_loaded": len(state.config_files),
+        "resources": {
+            "status": resources_status,
+            "cpu_percent": resources.get("cpu_percent"),
+            "cpu_status": cpu_status,
+            "memory_percent": resources.get("memory_percent"),
+            "memory_status": mem_status,
+            "disk_percent": resources.get("disk_percent"),
+            "disk_used_gb": resources.get("disk_used_gb"),
+            "disk_total_gb": resources.get("disk_total_gb"),
+            "disk_status": disk_status,
         },
     }
 

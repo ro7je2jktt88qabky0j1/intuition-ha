@@ -30,7 +30,6 @@ RELEVANT_KEYS = {
     "notify", "alert", "variable", "packages",
 }
 
-# Integration states that indicate problems
 PROBLEM_STATES = {"setup_error", "setup_retry", "failed_unload", "migration_error"}
 
 
@@ -61,18 +60,6 @@ async def get_area_registry() -> list:
 
 
 async def get_config_entries() -> list:
-    """
-    Get all integration config entries with their current state.
-    Used to detect broken/failing integrations (printer off, cloud service down, etc).
-
-    Entry states:
-    - loaded: working normally
-    - setup_error: failed to set up, not retrying
-    - setup_retry: failed but will retry automatically
-    - not_loaded: not loaded (disabled or dependency missing)
-    - failed_unload: error during unload
-    - migration_error: config migration failed
-    """
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             r = await client.get(
@@ -87,29 +74,12 @@ async def get_config_entries() -> list:
 
 
 async def get_integration_issues() -> list:
-    """
-    Return only config entries that have definite problems.
-
-    Rules:
-    - setup_error: always flag — integration failed and is not retrying
-    - setup_retry: always flag — integration is actively failing (will retry)
-    - not_loaded: only flag if disabled_by is set to something other than
-      'user' or 'config_entry' — meaning HA itself disabled it due to an error.
-      If the user disabled it intentionally, skip it.
-      If disabled_by is None, skip it — not_loaded with no disable reason
-      usually means the integration is managed by another entry (e.g. Lutron
-      via HomeKit Controller) and is NOT actually broken.
-    - failed_unload / migration_error: always flag
-    """
     entries = await get_config_entries()
     issues = []
     for entry in entries:
         state = entry.get("state", "")
         disabled_by = entry.get("disabled_by")
-
-        # setup_error and setup_retry are always real problems
         if state in ("setup_error", "setup_retry", "failed_unload", "migration_error"):
-            # Skip if user intentionally disabled it
             if disabled_by in ("user", "config_entry"):
                 continue
             issues.append({
@@ -119,8 +89,6 @@ async def get_integration_issues() -> list:
                 "entry_id": entry.get("entry_id", ""),
                 "reason": entry.get("reason", ""),
             })
-
-        # not_loaded is only a problem if HA disabled it (not the user)
         elif state == "not_loaded":
             if disabled_by and disabled_by not in ("user", "config_entry"):
                 issues.append({
@@ -131,8 +99,185 @@ async def get_integration_issues() -> list:
                     "reason": entry.get("reason", ""),
                     "disabled_by": disabled_by,
                 })
-
     return issues
+
+
+async def get_update_info() -> dict:
+    """
+    Get update availability for core, OS, supervisor, and add-ons.
+    Returns structured update summary.
+    """
+    updates = []
+
+    # Core
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(f"{SUPERVISOR_URL}/core/info", headers=_ha_headers())
+            if r.status_code == 200:
+                d = r.json().get("data", {})
+                if d.get("update_available"):
+                    updates.append({
+                        "name": "Home Assistant Core",
+                        "current": d.get("version", ""),
+                        "latest": d.get("version_latest", ""),
+                        "type": "core",
+                    })
+    except Exception as e:
+        logger.warning(f"Could not fetch core info: {e}")
+
+    # OS
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(f"{SUPERVISOR_URL}/os/info", headers=_ha_headers())
+            if r.status_code == 200:
+                d = r.json().get("data", {})
+                if d.get("update_available"):
+                    updates.append({
+                        "name": "Home Assistant OS",
+                        "current": d.get("version", ""),
+                        "latest": d.get("version_latest", ""),
+                        "type": "os",
+                    })
+    except Exception as e:
+        logger.warning(f"Could not fetch OS info: {e}")
+
+    # Supervisor
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(f"{SUPERVISOR_URL}/supervisor/info", headers=_ha_headers())
+            if r.status_code == 200:
+                d = r.json().get("data", {})
+                if d.get("update_available"):
+                    updates.append({
+                        "name": "Supervisor",
+                        "current": d.get("version", ""),
+                        "latest": d.get("version_latest", ""),
+                        "type": "supervisor",
+                    })
+    except Exception as e:
+        logger.warning(f"Could not fetch supervisor info: {e}")
+
+    # Add-ons
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(f"{SUPERVISOR_URL}/addons", headers=_ha_headers())
+            if r.status_code == 200:
+                addons = r.json().get("data", {}).get("addons", [])
+                for addon in addons:
+                    if addon.get("update_available"):
+                        updates.append({
+                            "name": addon.get("name", addon.get("slug", "")),
+                            "current": addon.get("version", ""),
+                            "latest": addon.get("version_latest", ""),
+                            "type": "addon",
+                            "slug": addon.get("slug", ""),
+                        })
+    except Exception as e:
+        logger.warning(f"Could not fetch addon info: {e}")
+
+    return {
+        "updates": updates,
+        "count": len(updates),
+        "has_updates": len(updates) > 0,
+        "core_update": next((u for u in updates if u["type"] == "core"), None),
+    }
+
+
+async def get_backup_info() -> dict:
+    """
+    Get latest backup info from Supervisor.
+    Returns last backup date, success status, and age in hours.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.get(f"{SUPERVISOR_URL}/backups", headers=_ha_headers())
+            if r.status_code == 200:
+                data = r.json().get("data", {})
+                backups = data.get("backups", [])
+                if not backups:
+                    return {"has_backup": False, "last_backup": None, "age_hours": None}
+
+                # Sort by date descending, get most recent
+                sorted_backups = sorted(
+                    backups,
+                    key=lambda b: b.get("date", ""),
+                    reverse=True
+                )
+                latest = sorted_backups[0]
+
+                from datetime import datetime, timezone
+                date_str = latest.get("date", "")
+                backup_dt = None
+                age_hours = None
+
+                if date_str:
+                    try:
+                        # Handle ISO format with timezone
+                        backup_dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+                        now = datetime.now(timezone.utc)
+                        age_hours = (now - backup_dt).total_seconds() / 3600
+                    except Exception:
+                        pass
+
+                return {
+                    "has_backup": True,
+                    "last_backup": date_str,
+                    "last_backup_name": latest.get("name", ""),
+                    "last_backup_type": latest.get("type", ""),
+                    "last_backup_size": latest.get("size", 0),
+                    "age_hours": age_hours,
+                    "total_backups": len(backups),
+                    "backup_dt": backup_dt.isoformat() if backup_dt else None,
+                }
+    except Exception as e:
+        logger.warning(f"Could not fetch backup info: {e}")
+    return {"has_backup": False, "last_backup": None, "age_hours": None}
+
+
+async def get_system_resources() -> dict:
+    """
+    Get host system resources: CPU, memory, disk.
+    Uses host/info for disk and core/stats for CPU/memory.
+    """
+    resources = {
+        "cpu_percent": None,
+        "memory_percent": None,
+        "disk_used_gb": None,
+        "disk_total_gb": None,
+        "disk_percent": None,
+    }
+
+    # CPU and memory from core stats
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(f"{SUPERVISOR_URL}/core/stats", headers=_ha_headers())
+            if r.status_code == 200:
+                d = r.json().get("data", {})
+                resources["cpu_percent"] = round(d.get("cpu_percent", 0), 1)
+                mem_usage = d.get("memory_usage", 0)
+                mem_limit = d.get("memory_limit", 1)
+                if mem_limit > 0:
+                    resources["memory_percent"] = round((mem_usage / mem_limit) * 100, 1)
+    except Exception as e:
+        logger.warning(f"Could not fetch core stats: {e}")
+
+    # Disk from host info
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(f"{SUPERVISOR_URL}/host/info", headers=_ha_headers())
+            if r.status_code == 200:
+                d = r.json().get("data", {})
+                disk_free = d.get("disk_free", 0)   # GB
+                disk_total = d.get("disk_total", 0)  # GB
+                disk_used = d.get("disk_used", 0)    # GB
+                if disk_total > 0:
+                    resources["disk_used_gb"] = round(disk_used, 1)
+                    resources["disk_total_gb"] = round(disk_total, 1)
+                    resources["disk_percent"] = round((disk_used / disk_total) * 100, 1)
+    except Exception as e:
+        logger.warning(f"Could not fetch host info for disk: {e}")
+
+    return resources
 
 
 async def run_config_check() -> dict:
@@ -348,7 +493,10 @@ def build_dependency_map(config_files: dict) -> dict:
                    "input_number", "input_select", "input_text", "input_datetime"):
             for match in input_def_pattern.finditer(content):
                 defined_helpers[f"{key}.{match.group(1)}"] = filename
-        file_summary[filename] = {"type": info["type"], "key": key, "lines": info["lines"], "entity_refs": len(refs)}
+        file_summary[filename] = {
+            "type": info["type"], "key": key,
+            "lines": info["lines"], "entity_refs": len(refs),
+        }
 
     return {
         "entity_ids_referenced": sorted(list(all_refs)),
