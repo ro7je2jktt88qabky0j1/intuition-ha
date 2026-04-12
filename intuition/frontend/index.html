@@ -260,9 +260,8 @@ mark{background:#c8933a40;color:var(--amber);border-radius:2px}
     <div class="topbar-right">
       <div class="status-badge">
         <div class="status-dot loading" id="status-dot"></div>
-        <span id="status-text">Loading...</span>
+        <span id="status-text">Connecting...</span>
       </div>
-      <button class="tb-btn" id="btn-refresh" onclick="refreshData()">↺ Refresh</button>
     </div>
   </div>
 
@@ -283,12 +282,7 @@ mark{background:#c8933a40;color:var(--amber);border-radius:2px}
         <div class="nav-item" data-page="log-review" onclick="showPage('log-review',this)"><span class="nav-icon">⊛</span>Log Review</div>
         <div class="nav-item disabled" data-page="auto-review"><span class="nav-icon">⟳</span>Automation Review<span class="nav-soon">SOON</span></div>
       </div>
-      <div class="sidebar-stats">
-        <div class="stat-row"><span class="stat-label">HA Version</span><span class="stat-value" id="stat-version">—</span></div>
-        <div class="stat-row"><span class="stat-label">Entities</span><span class="stat-value" id="stat-entities">—</span></div>
-        <div class="stat-row"><span class="stat-label">Files</span><span class="stat-value" id="stat-files">—</span></div>
-        <div class="stat-row"><span class="stat-label">Claude</span><span class="stat-value" id="stat-claude">—</span></div>
-      </div>
+
     </div>
 
     <div id="main">
@@ -375,6 +369,9 @@ mark{background:#c8933a40;color:var(--amber);border-radius:2px}
         <div class="page-header">
           <div class="page-title">Entities</div>
           <div class="page-subtitle" id="entities-subtitle">Loading...</div>
+          <div class="page-actions">
+            <button class="tb-btn primary" onclick="loadEntities(true)">↺ Refresh Entities</button>
+          </div>
         </div>
         <div class="page-body">
           <input class="search-input" id="entity-search" placeholder="Search by entity ID or name..." oninput="filterEntities()">
@@ -393,6 +390,9 @@ mark{background:#c8933a40;color:var(--amber);border-radius:2px}
         <div class="page-header">
           <div class="page-title">Config Files</div>
           <div class="page-subtitle" id="files-subtitle">Discovered from your Home Assistant configuration</div>
+          <div class="page-actions">
+            <button class="tb-btn primary" onclick="loadFiles(true)">↺ Refresh Files</button>
+          </div>
         </div>
         <div class="page-body" style="display:grid;grid-template-columns:280px 1fr;gap:16px;height:100%;padding-bottom:0;overflow:hidden;">
           <div style="overflow-y:auto;padding-bottom:16px;">
@@ -481,6 +481,8 @@ async function init() {
   if (INTUITION_VERSION) document.getElementById('brand-version').textContent = `v${INTUITION_VERSION}`;
   await loadStatus();
   await Promise.all([loadEntities(), loadFiles(), loadLogs()]);
+  // Auto-populate dashboard cards on load
+  runStatusRefresh();
 }
 
 async function api(path, opts = {}) {
@@ -499,25 +501,14 @@ async function loadStatus() {
   try {
     S.status = await api('/status');
     document.getElementById('status-dot').className = 'status-dot ok';
-    document.getElementById('status-text').textContent = `HA ${S.status.ha_version}`;
-    document.getElementById('stat-version').textContent = S.status.ha_version;
-    document.getElementById('stat-entities').textContent = S.status.entity_count;
-    document.getElementById('stat-files').textContent = S.status.files_count;
-    document.getElementById('stat-claude').textContent = S.status.claude_configured ? '✓ Ready' : '✗ Not set';
+    document.getElementById('status-text').textContent = 'Connected';
   } catch(e) {
     document.getElementById('status-dot').className = 'status-dot error';
-    document.getElementById('status-text').textContent = 'Error';
+    document.getElementById('status-text').textContent = 'Disconnected';
   }
 }
 
-async function refreshData() {
-  const btn = document.getElementById('btn-refresh');
-  btn.disabled = true; btn.textContent = 'Refreshing...';
-  document.getElementById('status-dot').className = 'status-dot loading';
-  try { await api('/refresh', { method: 'POST' }); await init(); }
-  catch(e) { document.getElementById('status-dot').className = 'status-dot error'; }
-  finally { btn.disabled = false; btn.textContent = '↺ Refresh'; }
-}
+
 
 // ── Dashboard: Status Refresh ─────────────────────────────────────────────────
 async function runStatusRefresh() {
@@ -769,9 +760,9 @@ function renderAiSummary(data) {
 }
 
 // ── Entities ──────────────────────────────────────────────────────────────────
-async function loadEntities() {
+async function loadEntities(refresh = false) {
   try {
-    const data = await api('/entities');
+    const data = await api(`/entities${refresh ? '?refresh=true' : ''}`);
     S.entities = data.entities;
     const summary = await api('/entities/summary');
     document.getElementById('stat-entities').textContent = summary.total;
@@ -820,8 +811,9 @@ function renderEntities() {
 }
 
 // ── Files ─────────────────────────────────────────────────────────────────────
-async function loadFiles() {
+async function loadFiles(refresh = false) {
   try {
+    if (refresh) await api('/refresh', { method: 'POST' });
     const data = await api('/files');
     S.filesInfo = data;
     const fileEntries = Object.entries(data.files).sort((a,b) => {
