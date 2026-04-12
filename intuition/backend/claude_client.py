@@ -298,3 +298,57 @@ async def chat(messages: list, system_prompt: str) -> str:
             return data["content"][0]["text"]
     except Exception as e:
         return f"Error: {str(e)}"
+
+
+async def health_ai(findings: dict) -> dict:
+    """
+    AI health analysis from structured findings only — no full YAML, no raw logs.
+    Fast, cheap, focused on what actually matters.
+    """
+    if not is_configured():
+        return {"error": "Claude API key not configured."}
+
+    system = """You are an expert Home Assistant system analyst. You receive structured health scan findings and provide a concise, plain English assessment.
+
+## KNOWN CONTEXT — DO NOT FLAG THESE
+- Mobile app sensors being unavailable is normal when phones are locked or offline
+- UniFi SuperLink environmental sensors (humidity/temperature/moisture) showing unavailable is a known integration limitation — not a problem
+- Input button state triggers are correct modern HA pattern
+- setup_retry on printer integrations usually means the printer is powered off
+
+## YOUR JOB
+Analyze the findings and return JSON with this exact structure:
+{
+  "overall": "excellent|good|fair|poor",
+  "summary": "2-3 sentences. Plain English. What is the state of this system right now?",
+  "priority_items": [
+    {
+      "title": "Short title",
+      "detail": "Plain English explanation of the issue and likely cause",
+      "action": "Specific thing to do",
+      "severity": "high|medium|low"
+    }
+  ],
+  "positive_notes": [
+    "Things that are working well worth noting"
+  ],
+  "log_recommendation": "null if logs look clean, otherwise a one sentence recommendation to run Log Review"
+}
+
+Rules:
+- priority_items should only contain real actionable issues — not normal background noise
+- Keep summary conversational, not robotic
+- If everything is fine, say so clearly and keep it short
+- Return ONLY the JSON object"""
+
+    import json
+    user = f"Analyze these Home Assistant health scan findings:\n\n{json.dumps(findings, indent=2)}"
+
+    try:
+        text = await _call_claude(system, user, max_tokens=2000, timeout=60)
+        return _parse_json_response(text)
+    except ValueError as e:
+        return {"error": str(e)}
+    except Exception as e:
+        logger.error(f"Health AI error: {e}")
+        return {"error": f"Analysis failed: {str(e)}"}

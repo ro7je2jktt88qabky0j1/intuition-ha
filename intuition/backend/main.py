@@ -4,13 +4,13 @@ FastAPI backend with HA ingress support and dynamic config discovery.
 """
 
 import os
+import re
 import logging
 from pathlib import Path
 from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import Optional, List
@@ -35,8 +35,8 @@ class AppState:
         self.ha_info = {}
         self.entities = []
         self.areas = []
-        self.config_files = {}       # filename -> content string
-        self.config_metadata = {}    # filename -> {key, type, lines, path}
+        self.config_files = {}
+        self.config_metadata = {}
         self.dependency_map = {}
         self.logs = ""
         self.host_info = {}
@@ -71,10 +71,8 @@ async def load_all_data():
         discovered = ha_client.discover_config_files()
         state.config_files = {k: v["content"] for k, v in discovered.items()}
         state.config_metadata = {k: {
-            "key": v["key"],
-            "type": v["type"],
-            "lines": v["lines"],
-            "path": v.get("path", ""),
+            "key": v["key"], "type": v["type"],
+            "lines": v["lines"], "path": v.get("path", ""),
         } for k, v in discovered.items()}
 
         logger.info("Building dependency map...")
@@ -83,7 +81,7 @@ async def load_all_data():
         logger.info("Checking integration health...")
         state.integration_issues = await ha_client.get_integration_issues()
         if state.integration_issues:
-            logger.warning(f"Found {len(state.integration_issues)} integration(s) with issues: {[i['title'] for i in state.integration_issues]}")
+            logger.warning(f"Found {len(state.integration_issues)} integration(s) with issues")
 
         logger.info("Loading logs...")
         state.logs = await ha_client.get_error_log()
@@ -93,10 +91,7 @@ async def load_all_data():
         state.core_info = await ha_client.get_core_info()
 
         state.loaded = True
-        logger.info(
-            f"Startup complete. {len(state.entities)} entities, "
-            f"{len(state.config_files)} config files loaded."
-        )
+        logger.info(f"Startup complete. {len(state.entities)} entities, {len(state.config_files)} config files.")
     except Exception as e:
         logger.error(f"Error during startup: {e}")
         state.loaded = True
@@ -112,14 +107,8 @@ async def serve_frontend():
     index = frontend_path / "index.html"
     if index.exists():
         html = index.read_text()
-        html = html.replace(
-            "const BASE_PATH_PLACEHOLDER = '';",
-            f"const BASE_PATH_PLACEHOLDER = '{ingress_entry}';"
-        )
-        html = html.replace(
-            "const VERSION_PLACEHOLDER = '';",
-            f"const VERSION_PLACEHOLDER = '{version}';"
-        )
+        html = html.replace("const BASE_PATH_PLACEHOLDER = '';", f"const BASE_PATH_PLACEHOLDER = '{ingress_entry}';")
+        html = html.replace("const VERSION_PLACEHOLDER = '';", f"const VERSION_PLACEHOLDER = '{version}';")
         return HTMLResponse(content=html)
     return HTMLResponse(content="<h1>Intuition</h1><p>Frontend not found.</p>")
 
@@ -130,7 +119,6 @@ async def get_status():
     ha_version = (
         state.ha_info.get("version") or
         state.core_info.get("data", {}).get("version") or
-        state.core_info.get("version") or
         "unknown"
     )
     return {
@@ -150,6 +138,147 @@ async def get_status():
 async def refresh_data():
     await load_all_data()
     return {"success": True}
+
+
+# ── Health: live status scan (no AI) ──────────────────────────────────────────
+@app.post("/api/health/status")
+async def health_status():
+    """
+    Fast local health scan — no AI, no cost.
+    Refreshes all data then returns structured findings.
+    """
+    await load_all_data()
+
+    # Scan logs for error/warning counts
+    log_errors = 0
+    log_warnings = 0
+    log_critical = False
+    if state.logs:
+        for line in state.logs.split("\n"):
+            ll = line.lower()
+            if "critical" in ll:
+                log_critical = True
+                log_errors += 1
+            elif "error" in ll:
+                log_errors += 1
+            elif "warning" in ll:
+                log_warnings += 1
+
+    # Entity health
+    all_unavailable = [
+        e["entity_id"] for e in state.entities
+        if e["state"] in ["unavailable", "unknown"]
+    ]
+    mobile_unavailable = [
+        e for e in all_unavailable
+        if any(x in e for x in ["iphone", "ipad", "android", "_phone", "mobile_app"])
+    ]
+    core_unavailable = [e for e in all_unavailable if e not in mobile_unavailable]
+
+    # Overall system status
+    has_errors = bool(state.integration_issues) or log_critical or len(core_unavailable) > 5
+    has_warnings = log_errors > 0 or len(core_unavailable) > 0
+
+    if has_errors:
+        system_status = "error"
+    elif has_warnings:
+        system_status = "warn"
+    else:
+        system_status = "ok"
+
+    # HA version
+    ha_version = (
+        state.ha_info.get("version") or
+        state.core_info.get("data", {}).get("version") or
+        "unknown"
+    )
+
+    return {
+        "system": {
+            "status": system_status,
+            "ha_version": ha_version,
+            "entity_count": len(state.entities),
+        },
+        "integrations": {
+            "status": "error" if state.integration_issues else "ok",
+            "total": len(state.integration_issues),
+            "issues": state.integration_issues,
+        },
+        "entities": {
+            "status": "warn" if core_unavailable else "ok",
+            "total": len(state.entities),
+            "unavailable_total": len(all_unavailable),
+            "unavailable_core": core_unavailable[:10],
+            "unavailable_mobile": len(mobile_unavailable),
+        },
+        "logs": {
+            "status": "error" if log_critical or log_errors > 10 else "warn" if log_errors > 0 else "ok",
+            "errors": log_errors,
+            "warnings": log_warnings,
+            "critical": log_critical,
+            "recommend_log_review": log_errors > 0,
+        },
+        "config": {
+            "files_loaded": len(state.config_files),
+        },
+    }
+
+
+# ── Health: AI analysis ────────────────────────────────────────────────────────
+@app.post("/api/health/ai")
+async def health_ai():
+    """
+    AI-powered health analysis. Sends only structured findings — not full YAML.
+    Must call /api/health/status first to get current data.
+    """
+    # Build structured findings to send to Claude
+    # Scan logs
+    log_errors = 0
+    log_warnings = 0
+    error_samples = []
+    if state.logs:
+        for line in state.logs.split("\n"):
+            ll = line.lower()
+            if "error" in ll or "critical" in ll:
+                log_errors += 1
+                if len(error_samples) < 10:
+                    error_samples.append(line.strip()[:200])
+            elif "warning" in ll:
+                log_warnings += 1
+
+    all_unavailable = [
+        e["entity_id"] for e in state.entities
+        if e["state"] in ["unavailable", "unknown"]
+    ]
+    core_unavailable = [
+        e for e in all_unavailable
+        if not any(x in e for x in ["iphone", "ipad", "android", "_phone", "mobile_app"])
+    ]
+
+    ha_version = (
+        state.ha_info.get("version") or
+        state.core_info.get("data", {}).get("version") or
+        "unknown"
+    )
+
+    findings = {
+        "ha_version": ha_version,
+        "entity_count": len(state.entities),
+        "integration_issues": state.integration_issues,
+        "unavailable_core_entities": core_unavailable[:20],
+        "unavailable_mobile_count": len(all_unavailable) - len(core_unavailable),
+        "log_error_count": log_errors,
+        "log_warning_count": log_warnings,
+        "log_error_samples": error_samples,
+        "config_files_loaded": len(state.config_files),
+        "config_file_names": list(state.config_files.keys()),
+        "host": state.host_info.get("data", {}),
+    }
+
+    try:
+        return await claude_client.health_ai(findings)
+    except Exception as e:
+        return {"error": str(e)}
 
 
 # ── Entities ───────────────────────────────────────────────────────────────────
@@ -204,10 +333,7 @@ async def get_files():
             "key": meta.get("key", "unknown"),
             "type": meta.get("type", "unknown"),
         }
-    return {
-        "files": files_info,
-        "total": len(files_info),
-    }
+    return {"files": files_info, "total": len(files_info)}
 
 
 @app.get("/api/files/{filename:path}")
@@ -217,11 +343,9 @@ async def get_file(filename: str):
         raise HTTPException(status_code=404, detail=f"{filename} not loaded.")
     meta = state.config_metadata.get(filename, {})
     return {
-        "filename": filename,
-        "content": content,
+        "filename": filename, "content": content,
         "lines": len(content.split("\n")),
-        "key": meta.get("key", "unknown"),
-        "type": meta.get("type", "unknown"),
+        "key": meta.get("key", "unknown"), "type": meta.get("type", "unknown"),
     }
 
 
@@ -263,10 +387,7 @@ async def reload_domains(body: ReloadRequest):
 async def get_logs(refresh: bool = False):
     if refresh:
         state.logs = await ha_client.get_error_log()
-    return {
-        "content": state.logs,
-        "lines": len(state.logs.split("\n")) if state.logs else 0,
-    }
+    return {"content": state.logs, "lines": len(state.logs.split("\n")) if state.logs else 0}
 
 
 # ── AI: Log review ─────────────────────────────────────────────────────────────
@@ -278,26 +399,6 @@ async def analyze_logs(refresh: bool = False):
         return {"error": "No logs available."}
     try:
         return await claude_client.analyze_logs(state.logs)
-    except Exception as e:
-        return {"error": str(e)}
-
-
-# ── AI: Health check ───────────────────────────────────────────────────────────
-@app.post("/api/ai/health-check")
-async def run_health_check(refresh: bool = False):
-    if refresh:
-        await load_all_data()
-    try:
-        return await claude_client.health_check(
-            files=state.config_files,
-            file_metadata=state.config_metadata,
-            entities=state.entities,
-            areas=state.areas,
-            logs=state.logs,
-            host_info=state.host_info,
-            core_info=state.core_info,
-            integration_issues=state.integration_issues,
-        )
     except Exception as e:
         return {"error": str(e)}
 
@@ -316,10 +417,4 @@ async def get_system_info():
 
 # ── Main ───────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=8099,
-        log_level=log_level.lower(),
-        access_log=True,
-    )
+    uvicorn.run("main:app", host="0.0.0.0", port=8099, log_level=log_level.lower(), access_log=True)
